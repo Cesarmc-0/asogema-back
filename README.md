@@ -10,13 +10,17 @@ Backend API desarrollado con NestJS, PostgreSQL, Redis, MongoDB y Clean Architec
 
 1. Clona el repo y entra a la carpeta
 2. Copia el archivo de variables de entorno:
-   
+
+```bash
    cp .env.example .env
-   
+```
+
 3. Si el puerto 3000 ya lo tienes ocupado, cambia `BACKEND_PORT` en tu `.env`
 4. Levanta el contenedor:
 
+```bash
    docker compose up --build
+```
 
 5. La API queda disponible en `http://localhost:3000`
 
@@ -27,10 +31,11 @@ Backend API desarrollado con NestJS, PostgreSQL, Redis, MongoDB y Clean Architec
 - `stage` → pre-producción
 
 Crea tu rama desde `develop`:
-\`\`\`bash
+
+```bash
 git checkout develop
 git pull origin develop
 git checkout -b feature/nombre-de-tu-feature
-\`\`\`
+```
 
 Abre un PR hacia `develop` cuando termines. Requiere al menos 1 aprobación.
