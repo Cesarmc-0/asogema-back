@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { AppController } from './presentation/controllers/app.controller';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { PostgresModule } from './infrastructure/persistence/postgres/postgres.module';
@@ -23,6 +22,6 @@ import { BullModule } from '@nestjs/bullmq';
     AuthModule,
   ],
   controllers: [AppController, HealthController],
-  providers: [AppService],
+  providers: [],
 })
 export class AppModule {}
