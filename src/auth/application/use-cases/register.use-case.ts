@@ -12,10 +12,13 @@ export class RegisterUseCase{
         if (existing) throw new ConflictException('El correo ya se encuentra registrado');
 
         const password_hash = await bcrypt.hash(dto.password,10);
-        const {password,...rest} = dto;
 
         return this.authRepository.create({
-            ...rest,
+            correo: dto.correo,
+            nombre: dto.nombre,
+            apellido: dto.apellido,
+            numero_documento: dto.numero_documento,
+            tipo_documento_id: Number(dto.tipo_documento_id),
             password_hash,
             rol_id: 2,
         });
