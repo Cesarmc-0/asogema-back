@@ -1,10 +1,14 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { RedisService } from '../../infrastructure/persistence/redis/redis.service';
 
-@Controller('health')
+@ApiTags('salud')
+@Controller('Health')
 export class HealthController {
   constructor(private readonly redisService: RedisService) {}
 
+  @ApiOperation({ summary: 'Estado general del servicio' })
+  @ApiResponse({ status: 200, description: 'Servidor activo' })
   @Get()
   check(): { status: string; timestamp: string; uptime: number } {
     return {
@@ -14,6 +18,9 @@ export class HealthController {
     };
   }
 
+  @ApiOperation({ summary: 'Estado de la conexión Redis' })
+  @ApiResponse({ status: 200, description: 'Ping a Redis exitoso' })
+  @ApiResponse({ status: 500, description: 'Redis no responde' })
   @Get('redis')
   async checkRedis(): Promise<{ status: string; redis: string }> {
     const ok = await this.redisService.ping();

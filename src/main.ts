@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 // Serializar BigInt como String para evitar errores en JSON/GraphQL.
 // NECESARIO porque todas las PK son bigint en el esquema de Asogema.
@@ -19,6 +20,15 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  const config = new DocumentBuilder()
+    .setTitle('Asogema API')
+    .setDescription('Backend para gestión de hotelería, restaurante y eventos')
+    .setVersion('0.0.1')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('docs', app, document);
+
   await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();
