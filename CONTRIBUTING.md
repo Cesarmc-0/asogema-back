@@ -84,9 +84,33 @@ git pull origin develop
 npm install
 
 # 4. Configurar variables de entorno
+
+## Opción A (recomendada): Variables de entorno del SO
+
+Configurar las variables una sola vez en el perfil del sistema.
+Así no dependes de un `.env` que pueda filtrarse.
+
+```powershell
+# Windows PowerShell (como Administrador, permanente)
+[Environment]::SetEnvironmentVariable("DATABASE_URL", "postgresql://...", "User")
+[Environment]::SetEnvironmentVariable("REDIS_URL", "redis://localhost:6379", "User")
+[Environment]::SetEnvironmentVariable("JWT_SECRET", "tu_secreto", "User")
+```
+
+```bash
+# Linux / macOS (~/.bashrc o ~/.zshrc)
+export DATABASE_URL="postgresql://..."
+export REDIS_URL="redis://localhost:6379"
+export JWT_SECRET="tu_secreto"
+```
+
+## Opción B: Archivo .env
+
+```bash
 cp .env.example .env
 # Editar .env con las URLs reales (pedir a un admin)
 #   - DATABASE_URL: postgresql://...@railway.../railway?sslmode=require
+```
 
 # 5. Generar el cliente Prisma tipado
 npx prisma generate
@@ -144,6 +168,14 @@ El esquema de la BD **ya existe en Railway**. Prisma opera en modo **introspecci
 - `main`, `stage`, `develop` (todo por PR).
 - `prisma/schema.prisma` a mano (usar `prisma db pull` o `prisma migrate`).
 - Configuración de estas ramas/protecciones en GitHub (lo hace el lead).
+
+### ⚠️ Seguridad de `.env`
+
+El `.env` contiene credenciales reales (PostgreSQL, JWT secret).
+- **Nunca compartirlo** por chat, captura de pantalla, zip, ni backups.
+- **Nunca ejecutar `git add --force .env`** — el `.gitignore` lo excluye, pero un `--force` lo pasaría.
+- Si sospechas que se expuso: **rotar las credenciales inmediatamente** (nuevo password en Railway + nuevo JWT secret).
+- Alternativa recomendada: configurar las variables directamente en el SO (ver sección 4).
 
 ---
 

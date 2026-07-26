@@ -1,6 +1,6 @@
 # CONTEXTO DEL PROYECTO - ASOGEMA-BACK
 
-> Archivo de seguimiento de sesión. Actualizado: 2026-07-22
+> Archivo de seguimiento de sesión. Actualizado: 2026-07-25
 > Propósito: permitir retomar el trabajo sin perder el hilo de decisiones y pendientes.
 
 ---
@@ -58,12 +58,26 @@ Es un sistema semiprofesional con:
 - `GET /` → scaffold NestJS (getHello) - aún presente (pendiente eliminar)
 - `GET /health` → `{status, timestamp, uptime}`
 - `GET /health/redis` → `{status, redis}` (ping Redis)
+- `POST /auth/login` → login con JWT (bcrypt + passport-jwt)
+- `POST /auth/register` → registro de usuario
+- `GET /auth/perfil` → perfil del usuario autenticado (requiere JWT)
+- `GET /docs` → Swagger UI
+
+### Auth (COMPLETADO)
+- Módulo `auth/` implementado con Clean Architecture (domain/application/infrastructure/presentation)
+- Login: bcrypt para password hashing, JWT para tokens
+- Register: valida correo único, hashea password
+- Perfil: endpoint protegido con JWT strategy
+- No RBAC todavía (el `rol_id` está en el JWT payload pero no se valida)
+- Swagger documentado con `@ApiTags`, `@ApiOperation`, DTOs con validación
+- Deps instaladas: bcrypt, @nestjs/jwt, @nestjs/passport, passport-jwt
+- **Decisiones pendientes**: access + refresh token (actualmente solo access)
 
 ### Otros
 - `.gitkeep` en carpetas Clean Architecture: application, domain, infrastructure, presentation
 - Parche BigInt→String en `src/main.ts` (necesario por PK bigint en BD)
-- `auth.module.ts` es scaffold vacío (se va a reemplazar en PASO 7)
-- `app.controller.ts`, `app.service.ts` son scaffold NestJS (pendiente mover/eliminar)
+- `AppController` ya está en `presentation/controllers/app.controller.ts` ✅
+- `AppService` fue eliminado (no se usaba) ✅
 
 ---
 
@@ -89,55 +103,38 @@ Es un sistema semiprofesional con:
 
 ## 4. Pendientes (backlog)
 
-### Inmediato (siguiente sesión)
-- [ ] **PASO 7**: Auth con JWT - primer módulo de Clean Architecture real
-  - Decisiones pendientes:
-    - ¿Access token + refresh token o solo access?
-    - ¿Completo (login + register + refresh + logout + middleware) o solo login+register?
-  - Deps a instalar: bcrypt, @nestjs/jwt, @nestjs/passport, passport-jwt
-  - Estructura sugerida:
-    ```
-    feature/auth-jwt
-      domain/
-        entities/usuario.entity.ts
-        repositories/usuario.repository.interface.ts (abstract)
-      application/
-        use-cases/login.use-case.ts
-        use-cases/register.use-case.ts
-      infrastructure/
-        persistence/postgres/repositories/usuario.repository.ts
-      presentation/
-        controllers/auth.controller.ts
-    ```
-
-### Corto plazo
+### Inmediato
 - [ ] Configurar branch protection en GitHub (main y stage requieren PR + CI verde)
-- [ ] Limpiar `auth.module.ts` zombie (vacío) si se reescribe en PASO 7
-- [ ] Mover `AppController` / `AppService` scaffold a presentation/ o eliminar
-- [ ] Agregar tests del módulo auth (cuando se haga PASO 7)
+- [x] Mover `AppController` / `AppService` scaffold a presentation/ o eliminar
+- [ ] Agregar tests unitarios del módulo auth (cero tests existen todavía)
+- [ ] Decidir sobre access + refresh token (actualmente solo access token)
 - [ ] Armar CD (continuous deployment) con webhook a Railway desde main
 - [ ] Considerar migrar estados varchar+CHECK de PG a enums reales (cosmético)
+
+### Corto plazo
+- [ ] Implementar RBAC (el rol_id ya está en el JWT, falta validarlo en guards)
+- [ ] Rate limit con @nestjs/throttler + Redis store
+- [ ] Manejo centralizado de errores (Exception Filters NestJS)
+- [ ] Logger estructurado (Winston o Pino)
 
 ### Medio plazo
 - [ ] MongoDB (tercera BD)
 - [ ] GraphQL (code-first vs schema-first pendiente)
 - [ ] WebSockets (Socket.IO vs WS nativo - pendiente)
-- [ ] Logger estructurado (Winston o Pino)
-- [ ] Documentación API con Swagger/OpenAPI
-- [ ] Manejo centralizado de errores (Exception Filters NestJS)
-- [ ] Rate limit con @nestjs/throttler + Redis store
+- [ ] Documentación API con Swagger/OpenAPI (parcialmente hecho)
 
 ### Pendientes administrativos
 - [ ] Pasar a devs: URL real de Railway PostgreSQL (o crearles usuario read-only)
 - [ ] Pasar a devs: instrucción `docker compose up -d redis` para Redis local
-- [ ] Resetear `stage` a `main` (stage está atrás de main, audit一口a Gitflow)
+- [ ] Resetear `stage` a `main` (stage está atrás de main, rompe Gitflow)
 - [ ] Verificar con devs: integridad de .env y onboarding (CONTRIBUTING.yml)
 
 ### Issues conocidos
 - [ ] `stage` branch está desactualizada respecto a main (commit b102cf9, antiqueal auth/config)
 - [ ] Historial de develop incluye Revert + re-merge de docker-setup (confuso pero funcional)
 - [ ] Schema introspeccionado tiene CHECK constraints que Prisma no soporta nativo (estados como varchar+CHECK) - decisión pendiente: migrar a enums o dejar
-- [ ] `AuthModule` existe pero está vacío en main; en develop fue borrado y re-agregado por merge del PR #6
+- [ ] `test/app.e2e-spec.ts` scaffold falla (espera "Hello World!" pero AppController devuelve JSON)
+- [ ] Cero tests unitarios (`*.spec.ts`) existen; Jest configurado pero sin usar
 
 ---
 
@@ -174,15 +171,13 @@ npm run prisma:pull
 
 ## 6. Cómo retomar la sesión
 
-Decir algo como:
-> "asogema-back, continuar con PASO 7 auth JWT"
-
-Y el asistente debe:
 1. Leer este archivo `CONTEXT.md`
 2. Verificar estado git: `git status && git log --oneline -3 && git branch --show-current`
-3. Verificar que build pasa: `npm run build && npm test`
-4. Preguntar las decisiones pendientes (access+refresh, completo vs solo login+register)
-5. Avanzar con el PASO 7
+3. Verificar que build pasa: `npm run lint && npm run build && npm test`
+4. Verificar que Redis está corriendo: `docker compose up -d redis`
+5. Levantar backend: `npm run start:dev`
+6. Verificar endpoints: `curl http://localhost:3000/health` y `curl http://localhost:3000/docs`
+7. Revisar pendientes en la sección 4 de este archivo
 
 ---
 
