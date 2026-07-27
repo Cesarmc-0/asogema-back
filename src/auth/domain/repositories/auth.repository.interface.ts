@@ -6,6 +6,7 @@ export interface CreateUsuarioInput {
   apellido: string;
   numero_documento: string;
   tipo_documento_id: number;
+  telefono: string;
   password_hash: string;
   rol_id: number;
 }

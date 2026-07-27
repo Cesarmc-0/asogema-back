@@ -20,8 +20,9 @@ export class RegisterUseCase {
       apellido: dto.apellido,
       numero_documento: dto.numero_documento,
       tipo_documento_id: Number(dto.tipo_documento_id),
+      telefono: dto.telefono,
       password_hash,
-      rol_id: 2,
+      rol_id: 5,
     });
   }
 }

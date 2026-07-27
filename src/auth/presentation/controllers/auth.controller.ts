@@ -14,17 +14,17 @@ export class AuthController {
     private readonly registerUseCase: RegisterUseCase,
   ) {}
 
-  @Post('login')
+  @Post('tokens')
   login(@Body() dto: LoginDto) {
     return this.loginUseCase.execute(dto);
   }
 
-  @Post('register')
+  @Post('users')
   register(@Body() dto: RegisterDto) {
     return this.registerUseCase.execute(dto);
   }
 
-  @Get('perfil')
+  @Get('users/me')
   @UseGuards(AuthGuard('jwt'))
   getProfile(@CurrentUser() user: AuthenticatedUser) {
     return user;
