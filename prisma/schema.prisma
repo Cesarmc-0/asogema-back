@@ -292,7 +292,7 @@ model usuarios {
   nombre               String                 @db.VarChar(100)
   apellido             String                 @db.VarChar(100)
   numero_documento     String                 @unique @db.VarChar(20)
-  telefono             String?                @db.VarChar(20)
+  telefono             String                @db.VarChar(20)
   correo               String                 @unique @db.VarChar(150)
   password_hash        String
   fecha_nacimiento     DateTime?              @db.Date
