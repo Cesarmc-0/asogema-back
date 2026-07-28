@@ -33,6 +33,7 @@ export class LoginUseCase {
         nombre: user.nombre,
         apellido: user.apellido,
         correo: user.correo,
+        rol_id: Number(user.rol_id),
       },
     };
   }
