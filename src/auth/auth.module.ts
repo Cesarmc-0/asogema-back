@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './presentation/controllers/auth.controller';
 import { LoginUseCase } from './application/use-cases/login.use-case';
 import { RegisterUseCase } from './application/use-cases/register.use-case';
+import { CreateAdminService } from './application/use-cases/create-admin.use-case';
 import { AuthRepository } from './domain/repositories/auth.repository.interface';
 import { AuthRepositoryImpl } from './infrastructure/persistence/auth.repository';
 import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
@@ -20,8 +21,15 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
   providers: [
     LoginUseCase,
     RegisterUseCase,
+    CreateAdminService,
     JwtStrategy,
     { provide: AuthRepository, useClass: AuthRepositoryImpl },
   ],
 })
-export class AuthModule {}
+export class AuthModule implements OnModuleInit {
+  constructor(private readonly createAdmin: CreateAdminService) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.createAdmin.ensureAdmin();
+  }
+}
