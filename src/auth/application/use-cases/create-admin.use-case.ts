@@ -27,25 +27,42 @@ export class CreateAdminService {
         where: { correo: ADMIN_EMAIL },
       });
 
+      const password_hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+      const adminData = {
+        rol_id: role.id,
+        tipo_documento_id: 1,
+        nombre: 'Administrador',
+        apellido: 'Sistema',
+        numero_documento: '0000000000',
+        correo: ADMIN_EMAIL,
+        password_hash,
+        telefono: '0000000000',
+      };
+
       if (existing) {
-        this.logger.log(`Admin ${ADMIN_EMAIL} ya existe.`);
+        const needsUpdate =
+          existing.rol_id !== role.id ||
+          existing.nombre !== adminData.nombre ||
+          existing.apellido !== adminData.apellido;
+
+        if (needsUpdate) {
+          await this.prisma.usuarios.update({
+            where: { id: existing.id },
+            data: {
+              rol_id: role.id,
+              nombre: adminData.nombre,
+              apellido: adminData.apellido,
+              password_hash,
+            },
+          });
+          this.logger.log(`Admin ${ADMIN_EMAIL} actualizado.`);
+        } else {
+          this.logger.log(`Admin ${ADMIN_EMAIL} ya existe y está correcto.`);
+        }
         return;
       }
 
-      const password_hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
-
-      await this.prisma.usuarios.create({
-        data: {
-          rol_id: role.id,
-          tipo_documento_id: 1,
-          nombre: 'Administrador',
-          apellido: 'Sistema',
-          numero_documento: '0000000000',
-          correo: ADMIN_EMAIL,
-          password_hash,
-          telefono: '0000000000',
-        },
-      });
+      await this.prisma.usuarios.create({ data: adminData });
 
       this.logger.log(`Admin creado: ${ADMIN_EMAIL}`);
     } catch (error) {
