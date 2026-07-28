@@ -51,6 +51,7 @@ describe('LoginUseCase', () => {
       nombre: 'Test',
       apellido: 'User',
       correo: 'test@test.com',
+      rol_id: 2,
     });
   });
 
