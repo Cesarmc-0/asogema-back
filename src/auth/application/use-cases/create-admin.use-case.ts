@@ -19,7 +19,9 @@ export class CreateAdminService {
       });
 
       if (!role) {
-        this.logger.warn('No se encontró rol de Administrador. Admin no creado.');
+        this.logger.warn(
+          'No se encontró rol de Administrador. Admin no creado.',
+        );
         return;
       }
 
