@@ -1,8 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Public } from 'src/auth/presentation/dto/decorators/public.decorator';
 import { RedisService } from '../../infrastructure/persistence/redis/redis.service';
 
 @ApiTags('salud')
+@Public()
 @Controller('Health')
 export class HealthController {
   constructor(private readonly redisService: RedisService) {}

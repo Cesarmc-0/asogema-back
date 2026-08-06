@@ -1,7 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Public } from 'src/auth/presentation/dto/decorators/public.decorator';
 
 @ApiTags('App')
+@Public()
 @Controller()
 export class AppController {
   @ApiOperation({ summary: 'Estado y versión de la API' })

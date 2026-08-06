@@ -3,6 +3,8 @@ import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.se
 import {
   AuthRepository,
   CreateUsuarioInput,
+  UsuarioWithRoles,
+  UpdateProfileInput,
 } from 'src/auth/domain/repositories/auth.repository.interface';
 import { usuarios } from '@prisma/client';
 
@@ -10,11 +12,32 @@ import { usuarios } from '@prisma/client';
 export class AuthRepositoryImpl implements AuthRepository {
   constructor(private prisma: PrismaService) {}
 
-  async findByEmail(correo: string): Promise<usuarios | null> {
-    return this.prisma.usuarios.findUnique({ where: { correo } });
+  async findByEmail(correo: string): Promise<UsuarioWithRoles | null> {
+    return this.prisma.usuarios.findUnique({
+      where: { correo },
+      include: { roles: true },
+    });
   }
 
   async create(data: CreateUsuarioInput): Promise<usuarios> {
     return this.prisma.usuarios.create({ data });
+  }
+
+  async findById(id: bigint): Promise<UsuarioWithRoles | null> {
+    return this.prisma.usuarios.findUnique({
+      where: { id },
+      include: { roles: true },
+    });
+  }
+
+  async update(
+    id: bigint,
+    data: UpdateProfileInput,
+  ): Promise<UsuarioWithRoles> {
+    return this.prisma.usuarios.update({
+      where: { id },
+      data,
+      include: { roles: true },
+    });
   }
 }

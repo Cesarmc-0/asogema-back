@@ -23,6 +23,7 @@ export class LoginUseCase {
       sub: user.id.toString(),
       correo: user.correo,
       rol: user.rol_id.toString(),
+      rol_nombre: user.roles.nombre,
     };
     const access_token = this.jwtService.sign(payload);
 
@@ -34,6 +35,7 @@ export class LoginUseCase {
         apellido: user.apellido,
         correo: user.correo,
         rol_id: Number(user.rol_id),
+        rol_nombre: user.roles.nombre,
       },
     };
   }
