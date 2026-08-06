@@ -12,6 +12,7 @@ const mockUser = {
   numero_documento: '12345678',
   tipo_documento_id: 1,
   telefono: '3001234567',
+  roles: { nombre: 'Cliente' },
 };
 
 const mockPrismaService = {
@@ -39,6 +40,7 @@ describe('AuthRepositoryImpl', () => {
       expect(result).toEqual(mockUser);
       expect(mockPrismaService.usuarios.findUnique).toHaveBeenCalledWith({
         where: { correo: 'test@test.com' },
+        include: { roles: true },
       });
     });
 

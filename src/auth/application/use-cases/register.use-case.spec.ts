@@ -1,6 +1,7 @@
 jest.mock('bcrypt');
 import { RegisterUseCase } from './register.use-case';
 import { AuthRepository } from '../../../auth/domain/repositories/auth.repository.interface';
+import { PrismaService } from '../../../infrastructure/persistence/postgres/prisma.service';
 import { ConflictException } from '@nestjs/common';
 import { RegisterDto } from '../../../auth/presentation/dto/register.dto';
 import * as bcrypt from 'bcrypt';
@@ -23,11 +24,21 @@ const mockAuthRepository = {
   create: () => Promise.resolve(mockUser),
 } as unknown as AuthRepository;
 
+const mockPrismaService = {
+  roles: {
+    findFirst: jest.fn(),
+  },
+} as unknown as PrismaService;
+
 describe('RegisterUseCase', () => {
   let useCase: RegisterUseCase;
 
   beforeEach(() => {
-    useCase = new RegisterUseCase(mockAuthRepository);
+    useCase = new RegisterUseCase(mockAuthRepository, mockPrismaService);
+    (mockPrismaService.roles.findFirst as jest.Mock).mockResolvedValue({
+      id: 2n,
+      nombre: 'Cliente',
+    });
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_password');
   });
 
