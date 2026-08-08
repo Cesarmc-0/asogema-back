@@ -74,14 +74,15 @@ Es un sistema semiprofesional con:
 - **Decisiones pendientes**: access + refresh token (actualmente solo access)
 
 ### Otros
-- Módulos de negocio creados, cada uno en su rama feature (PRs pendientes a develop):
-  - `feat/admin-module`: panel de KPIs, reservas del día, ingresos, socios (protegido con `@Roles('Administrador')`)
-  - `feat/hotel-module`: habitaciones disponibles, reservas, mis reservas (specs 9 tests)
-  - `feat/restaurant-module`: menú, mesas disponibles, reservaciones (8 tests)
-  - `feat/events-module`: salones, tipos de evento, reservas + seed-negocio.ts (9 tests)
+- Módulos de negocio **integrados a develop** (merge squash, ramas borradas):
+  - `src/admin` → `AdminModule`: panel de KPIs, reservas del día, ingresos, socios (protegido con `@Roles('Administrador')`)
+  - `src/hotel` → `HotelModule`: habitaciones disponibles, reservas, mis reservas
+  - `src/restaurant` → `RestaurantModule`: menú, mesas disponibles, reservaciones
+  - `src/events` → `EventsModule`: salones, tipos de evento, reservas + `prisma/seed-negocio.ts`
+  - `app.module.ts` registra los 4 módulos de negocio + Auth
 - Rate limiting global con Redis storage (`@nestjs/throttler`, `RateLimitModule`) en develop
 - Fix CI: `node-version: 20.x` (cumple engines de `@angular-devkit` >=20.11.1)
-- Refactor `ChangePasswordUseCase` movido al `AuthRepository` (sin PrismaService directo) en `refactor/change-password-repository`
+- Refactor `ChangePasswordUseCase` movido al `AuthRepository` (sin PrismaService directo) ya en develop
 - `.gitkeep` en carpetas Clean Architecture: application, domain, infrastructure, presentation
 - Parche BigInt→String en `src/main.ts` (necesario por PK bigint en BD)
 - `AppController` ya está en `presentation/controllers/app.controller.ts` ✅
