@@ -30,4 +30,8 @@ export abstract class AuthRepository {
   abstract create(data: CreateUsuarioInput): Promise<usuarios>;
   abstract findById(id: bigint): Promise<UsuarioConRol | null>;
   abstract update(id: bigint, data: UpdateProfileInput): Promise<UsuarioConRol>;
+  abstract updatePassword(
+    id: bigint,
+    password_hash: string,
+  ): Promise<UsuarioConRol>;
 }

@@ -40,4 +40,15 @@ export class AuthRepositoryImpl implements AuthRepository {
       include: { roles: true },
     });
   }
+
+  async updatePassword(
+    id: bigint,
+    password_hash: string,
+  ): Promise<UsuarioWithRoles> {
+    return this.prisma.usuarios.update({
+      where: { id },
+      data: { password_hash },
+      include: { roles: true },
+    });
+  }
 }

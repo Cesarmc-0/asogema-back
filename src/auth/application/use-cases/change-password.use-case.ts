@@ -5,14 +5,10 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { AuthRepository } from 'src/auth/domain/repositories/auth.repository.interface';
-import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 
 @Injectable()
 export class ChangePasswordUseCase {
-  constructor(
-    private authRepository: AuthRepository,
-    private prisma: PrismaService,
-  ) {}
+  constructor(private authRepository: AuthRepository) {}
 
   async execute(
     id: bigint,
@@ -33,10 +29,6 @@ export class ChangePasswordUseCase {
 
     const password_hash = await bcrypt.hash(dto.new_password, 10);
 
-    return this.prisma.usuarios.update({
-      where: { id },
-      data: { password_hash },
-      include: { roles: true },
-    });
+    return this.authRepository.updatePassword(id, password_hash);
   }
 }

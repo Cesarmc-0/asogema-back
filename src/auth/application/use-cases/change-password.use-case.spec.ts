@@ -3,19 +3,14 @@ import { ChangePasswordUseCase } from './change-password.use-case';
 
 const mockAuthRepository = {
   findById: jest.fn(),
-} as any;
-
-const mockPrisma = {
-  usuarios: {
-    update: jest.fn(),
-  },
+  updatePassword: jest.fn(),
 } as any;
 
 describe('ChangePasswordUseCase', () => {
   let useCase: ChangePasswordUseCase;
 
   beforeEach(() => {
-    useCase = new ChangePasswordUseCase(mockAuthRepository, mockPrisma);
+    useCase = new ChangePasswordUseCase(mockAuthRepository);
   });
 
   afterEach(() => {
@@ -37,7 +32,7 @@ describe('ChangePasswordUseCase', () => {
       .spyOn(mockBcrypt, 'hash')
       .mockResolvedValue('hashed_new_password');
 
-    mockPrisma.usuarios.update.mockResolvedValue({ id: 1n });
+    mockAuthRepository.updatePassword.mockResolvedValue({ id: 1n });
 
     const result = await useCase.execute(1n, {
       current_password: 'oldPass123',
@@ -49,10 +44,9 @@ describe('ChangePasswordUseCase', () => {
       'hashed_old_password',
     );
     expect(hashSpy).toHaveBeenCalledWith('newPass456', 10);
-    expect(mockPrisma.usuarios.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 1n },
-      }),
+    expect(mockAuthRepository.updatePassword).toHaveBeenCalledWith(
+      1n,
+      'hashed_new_password',
     );
 
     compareSpy.mockRestore();
