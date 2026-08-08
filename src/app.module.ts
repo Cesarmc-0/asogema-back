@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './presentation/controllers/app.controller';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
+import { EventsModule } from './events/events.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
 import { HotelModule } from './hotel/hotel.module';
 import { AdminModule } from './admin/admin.module';
@@ -25,6 +26,7 @@ import { RateLimitModule } from './infrastructure/persistence/redis/rate-limit.m
     RedisModule,
     RateLimitModule,
     AuthModule,
+    EventsModule,
     RestaurantModule,
     HotelModule,
     AdminModule,
