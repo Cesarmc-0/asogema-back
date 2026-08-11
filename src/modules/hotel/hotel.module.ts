@@ -14,4 +14,4 @@ import { TipoHabitacionRepositoryImpl } from './infrastructure/persistence/tipo-
     HabitacionResolver,
   ],
 })
-export class HotelModule {}
+export class HotelFeatureModule {}
