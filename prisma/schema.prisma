@@ -1,0 +1,310 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model categorias_menu {
+  id             BigInt           @id @default(autoincrement())
+  nombre         String           @unique @db.VarChar(100)
+  descripcion    String?
+  estado         Boolean          @default(true)
+  created_at     DateTime         @default(now()) @db.Timestamp(6)
+  updated_at     DateTime         @default(now()) @db.Timestamp(6)
+  productos_menu productos_menu[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model detalle_factura {
+  id              BigInt   @id @default(autoincrement())
+  factura_id      BigInt
+  descripcion     String   @db.VarChar(200)
+  cantidad        Int
+  precio_unitario Decimal  @db.Decimal(12, 2)
+  subtotal        Decimal? @default(dbgenerated("((cantidad)::numeric * precio_unitario)")) @db.Decimal(12, 2)
+  facturas        facturas @relation(fields: [factura_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_detalle_factura")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model detalle_pedido {
+  id                  BigInt              @id @default(autoincrement())
+  pedido_id           BigInt
+  producto_id         BigInt
+  cantidad            Int
+  precio_unitario     Decimal             @db.Decimal(10, 2)
+  created_at          DateTime            @default(now()) @db.Timestamp(6)
+  subtotal            Decimal?            @default(dbgenerated("((cantidad)::numeric * precio_unitario)")) @db.Decimal(10, 2)
+  pedidos_restaurante pedidos_restaurante @relation(fields: [pedido_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_detalle_pedido")
+  productos_menu      productos_menu      @relation(fields: [producto_id], references: [id], onUpdate: NoAction, map: "fk_detalle_producto")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model detalle_servicios_evento {
+  id                BigInt           @id @default(autoincrement())
+  reserva_evento_id BigInt
+  servicio_id       BigInt
+  cantidad          Int
+  precio_unitario   Decimal          @db.Decimal(12, 2)
+  subtotal          Decimal?         @default(dbgenerated("((cantidad)::numeric * precio_unitario)")) @db.Decimal(12, 2)
+  reservas_evento   reservas_evento  @relation(fields: [reserva_evento_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_detalle_reserva_evento")
+  servicios_evento  servicios_evento @relation(fields: [servicio_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_detalle_servicio_evento")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model facturas {
+  id              BigInt            @id @default(autoincrement())
+  usuario_id      BigInt
+  fecha_factura   DateTime?         @default(now()) @db.Timestamp(6)
+  subtotal        Decimal           @db.Decimal(12, 2)
+  impuestos       Decimal?          @default(0) @db.Decimal(12, 2)
+  descuentos      Decimal?          @default(0) @db.Decimal(12, 2)
+  total           Decimal           @db.Decimal(12, 2)
+  estado          String            @default("PENDIENTE") @db.VarChar(20)
+  observaciones   String?
+  created_at      DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?         @default(now()) @db.Timestamp(6)
+  detalle_factura detalle_factura[]
+  usuarios        usuarios          @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_factura_usuario")
+  pagos           pagos[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model habitaciones {
+  id                 BigInt           @id @default(autoincrement())
+  tipo_habitacion_id BigInt
+  numero             String           @unique @db.VarChar(10)
+  piso               Int              @db.SmallInt
+  descripcion        String?
+  estado             Boolean          @default(true)
+  created_at         DateTime         @default(now()) @db.Timestamp(6)
+  updated_at         DateTime         @default(now()) @db.Timestamp(6)
+  tipos_habitacion   tipos_habitacion @relation(fields: [tipo_habitacion_id], references: [id], map: "fk_habitacion_tipo")
+  reservas_hotel     reservas_hotel[]
+}
+
+model huespedes_reserva {
+  id                BigInt          @id @default(autoincrement())
+  reserva_id        BigInt
+  nombre            String          @db.VarChar(100)
+  apellido          String          @db.VarChar(100)
+  tipo_documento_id BigInt
+  numero_documento  String          @db.VarChar(20)
+  telefono          String?         @db.VarChar(20)
+  correo            String?         @db.VarChar(150)
+  created_at        DateTime        @default(now()) @db.Timestamp(6)
+  reservas_hotel    reservas_hotel  @relation(fields: [reserva_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_huesped_reserva")
+  tipos_documento   tipos_documento @relation(fields: [tipo_documento_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_huesped_tipo_documento")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model mesas {
+  id                   BigInt                 @id @default(autoincrement())
+  numero               String                 @unique @db.VarChar(10)
+  capacidad            Int                    @db.SmallInt
+  ubicacion            String?                @db.VarChar(100)
+  estado               String                 @default("LIBRE") @db.VarChar(20)
+  created_at           DateTime               @default(now()) @db.Timestamp(6)
+  updated_at           DateTime               @default(now()) @db.Timestamp(6)
+  reservas_restaurante reservas_restaurante[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pagos {
+  id          BigInt    @id @default(autoincrement())
+  factura_id  BigInt
+  fecha_pago  DateTime? @default(now()) @db.Timestamp(6)
+  metodo_pago String    @db.VarChar(30)
+  valor       Decimal   @db.Decimal(12, 2)
+  referencia  String?   @db.VarChar(100)
+  estado      String?   @default("CONFIRMADO") @db.VarChar(20)
+  facturas    facturas  @relation(fields: [factura_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_pago_factura")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pedidos_restaurante {
+  id                     BigInt               @id @default(autoincrement())
+  reserva_restaurante_id BigInt
+  mesero_id              BigInt
+  fecha_pedido           DateTime             @default(now()) @db.Timestamp(6)
+  estado                 String               @default("ABIERTO") @db.VarChar(20)
+  observaciones          String?
+  created_at             DateTime             @default(now()) @db.Timestamp(6)
+  updated_at             DateTime             @default(now()) @db.Timestamp(6)
+  total                  Decimal              @default(0) @db.Decimal(12, 2)
+  detalle_pedido         detalle_pedido[]
+  usuarios               usuarios             @relation(fields: [mesero_id], references: [id], map: "fk_pedido_mesero")
+  reservas_restaurante   reservas_restaurante @relation(fields: [reserva_restaurante_id], references: [id], map: "fk_pedido_reserva")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model productos_menu {
+  id              BigInt           @id @default(autoincrement())
+  categoria_id    BigInt
+  nombre          String           @db.VarChar(150)
+  descripcion     String?
+  precio          Decimal          @db.Decimal(10, 2)
+  stock           Int
+  estado          Boolean          @default(true)
+  created_at      DateTime         @default(now()) @db.Timestamp(6)
+  updated_at      DateTime         @default(now()) @db.Timestamp(6)
+  detalle_pedido  detalle_pedido[]
+  categorias_menu categorias_menu  @relation(fields: [categoria_id], references: [id], map: "fk_producto_categoria")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reservas_evento {
+  id                       BigInt                     @id @default(autoincrement())
+  usuario_id               BigInt
+  salon_id                 BigInt
+  tipo_evento_id           BigInt
+  fecha                    DateTime                   @db.Date
+  hora_inicio              DateTime                   @db.Time(6)
+  hora_fin                 DateTime                   @db.Time(6)
+  cantidad_personas        Int                        @db.SmallInt
+  anticipo                 Decimal?                   @default(0) @db.Decimal(12, 2)
+  estado                   String                     @default("PENDIENTE") @db.VarChar(20)
+  observaciones            String?
+  created_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  updated_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  detalle_servicios_evento detalle_servicios_evento[]
+  salones                  salones                    @relation(fields: [salon_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reserva_evento_salon")
+  tipos_evento             tipos_evento               @relation(fields: [tipo_evento_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reserva_evento_tipo")
+  usuarios                 usuarios                   @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reserva_evento_usuario")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reservas_hotel {
+  id                 BigInt              @id @default(autoincrement())
+  usuario_id         BigInt
+  habitacion_id      BigInt
+  fecha_reserva      DateTime            @default(now()) @db.Timestamp(6)
+  fecha_entrada      DateTime            @db.Date
+  fecha_salida       DateTime            @db.Date
+  cantidad_huespedes Int                 @db.SmallInt
+  total              Decimal             @db.Decimal(12, 2)
+  estado             String              @db.VarChar(20)
+  observaciones      String?
+  created_at         DateTime            @default(now()) @db.Timestamp(6)
+  updated_at         DateTime            @default(now()) @db.Timestamp(6)
+  huespedes_reserva  huespedes_reserva[]
+  habitaciones       habitaciones        @relation(fields: [habitacion_id], references: [id], map: "fk_reserva_habitacion")
+  usuarios           usuarios            @relation(fields: [usuario_id], references: [id], map: "fk_reserva_usuario")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reservas_restaurante {
+  id                  BigInt                @id @default(autoincrement())
+  usuario_id          BigInt
+  mesa_id             BigInt
+  fecha               DateTime              @db.Date
+  hora                DateTime              @db.Time(6)
+  cantidad_personas   Int                   @db.SmallInt
+  motivo              String?               @db.VarChar(100)
+  estado              String                @default("PENDIENTE") @db.VarChar(20)
+  observaciones       String?
+  created_at          DateTime              @default(now()) @db.Timestamp(6)
+  updated_at          DateTime              @default(now()) @db.Timestamp(6)
+  pedidos_restaurante pedidos_restaurante[]
+  mesas               mesas                 @relation(fields: [mesa_id], references: [id], map: "fk_reserva_rest_mesa")
+  usuarios            usuarios              @relation(fields: [usuario_id], references: [id], map: "fk_reserva_rest_usuario")
+
+  @@unique([mesa_id, fecha, hora], map: "uq_mesa_fecha_hora")
+}
+
+model roles {
+  id          BigInt     @id @default(autoincrement())
+  nombre      String     @unique @db.VarChar(50)
+  descripcion String?
+  estado      Boolean    @default(true)
+  created_at  DateTime   @default(now()) @db.Timestamp(6)
+  updated_at  DateTime   @default(now()) @db.Timestamp(6)
+  usuarios    usuarios[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model salones {
+  id              BigInt            @id @default(autoincrement())
+  nombre          String            @unique @db.VarChar(100)
+  capacidad       Int               @db.SmallInt
+  ubicacion       String?           @db.VarChar(150)
+  precio_base     Decimal           @db.Decimal(12, 2)
+  estado          String            @default("DISPONIBLE") @db.VarChar(20)
+  descripcion     String?
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  reservas_evento reservas_evento[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model servicios_evento {
+  id                       BigInt                     @id @default(autoincrement())
+  nombre                   String                     @unique @db.VarChar(100)
+  descripcion              String?
+  precio                   Decimal                    @db.Decimal(12, 2)
+  estado                   Boolean?                   @default(true)
+  created_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  updated_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  detalle_servicios_evento detalle_servicios_evento[]
+}
+
+model tipos_documento {
+  id                BigInt              @id @default(autoincrement())
+  nombre            String              @unique @db.VarChar(50)
+  abreviatura       String              @unique @db.VarChar(10)
+  estado            Boolean             @default(true)
+  created_at        DateTime            @default(now()) @db.Timestamp(6)
+  updated_at        DateTime            @default(now()) @db.Timestamp(6)
+  huespedes_reserva huespedes_reserva[]
+  usuarios          usuarios[]
+}
+
+model tipos_evento {
+  id              BigInt            @id @default(autoincrement())
+  nombre          String            @unique @db.VarChar(100)
+  descripcion     String?
+  estado          Boolean           @default(true)
+  created_at      DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?         @default(now()) @db.Timestamp(6)
+  reservas_evento reservas_evento[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tipos_habitacion {
+  id           BigInt         @id @default(autoincrement())
+  nombre       String         @unique @db.VarChar(50)
+  descripcion  String?
+  capacidad    Int            @db.SmallInt
+  precio_noche Decimal        @db.Decimal(10, 2)
+  estado       Boolean        @default(true)
+  created_at   DateTime       @default(now()) @db.Timestamp(6)
+  updated_at   DateTime       @default(now()) @db.Timestamp(6)
+  habitaciones habitaciones[]
+}
+
+model usuarios {
+  id                   BigInt                 @id @default(autoincrement())
+  rol_id               BigInt
+  tipo_documento_id    BigInt
+  nombre               String                 @db.VarChar(100)
+  apellido             String                 @db.VarChar(100)
+  numero_documento     String                 @unique @db.VarChar(20)
+  telefono             String                @db.VarChar(20)
+  correo               String                 @unique @db.VarChar(150)
+  password_hash        String
+  fecha_nacimiento     DateTime?              @db.Date
+  direccion            String?                @db.VarChar(255)
+  estado               Boolean                @default(true)
+  created_at           DateTime               @default(now()) @db.Timestamp(6)
+  updated_at           DateTime               @default(now()) @db.Timestamp(6)
+  facturas             facturas[]
+  pedidos_restaurante  pedidos_restaurante[]
+  reservas_evento      reservas_evento[]
+  reservas_hotel       reservas_hotel[]
+  reservas_restaurante reservas_restaurante[]
+  roles                roles                  @relation(fields: [rol_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_usuario_rol")
+  tipos_documento      tipos_documento        @relation(fields: [tipo_documento_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_usuario_tipo_documento")
+}

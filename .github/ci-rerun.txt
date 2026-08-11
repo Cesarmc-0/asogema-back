@@ -1,0 +1,4 @@
+Trigger CI rerun
+
+Archivo creado automáticamente para provocar un nuevo run de GitHub Actions (no modifica código fuente).
+Timestamp: 2026-08-11T01:12:00Z
