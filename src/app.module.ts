@@ -4,7 +4,6 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { EventsModule } from './events/events.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
-import { HotelModule } from './hotel/hotel.module';
 import { AdminModule } from './admin/admin.module';
 import { PostgresModule } from './infrastructure/persistence/postgres/postgres.module';
 import { RedisModule } from './infrastructure/persistence/redis/redis.module';
