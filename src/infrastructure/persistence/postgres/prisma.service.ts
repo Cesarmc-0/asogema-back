@@ -26,8 +26,13 @@ export class PrismaService
   }
 
   async onModuleInit(): Promise<void> {
-    await this.$connect();
-    this.logger.log('Prisma conectado a PostgreSQL');
+    try {
+      await this.$connect();
+      this.logger.log('Prisma conectado a PostgreSQL');
+    } catch (error) {
+      const { message } = error as Error;
+      this.logger.warn(`Prisma no conectó: ${message}`);
+    }
   }
 
   async onModuleDestroy(): Promise<void> {
