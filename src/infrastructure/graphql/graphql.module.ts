@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
+import type { Request } from 'express';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { join } from 'path';
       sortSchema: true,
       playground: true,
       path: '/graphql',
-      context: ({ req }) => ({ req }),
+      context: ({ req }: { req: Request }) => ({ req }),
     }),
   ],
 })
