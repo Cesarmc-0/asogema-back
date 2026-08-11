@@ -97,7 +97,29 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-=======
+
+---
+
 # asogema-back
-Backend API desarrollado con NestJS, PostgreSQL, Redis, MongoDB y Clean Architecture.
->>>>>>> 1c24c613a88b78e0126a21700ddbaa145c666e0c
+
+[![CI](https://github.com/Cesarmc-0/asogema-back/actions/workflows/ci.yml/badge.svg)](https://github.com/Cesarmc-0/asogema-back/actions/workflows/ci.yml)
+
+Backend API para Asogema (gestión hotelería, restaurante y eventos) desarrollado con NestJS, PostgreSQL, Redis, MongoDB, GraphQL y WebSockets, siguiendo Clean Architecture y Gitflow.
+
+## Estado actual
+- PostgreSQL (Railway) — operativa, esquema introspeccionado con Prisma 6.
+- Redis, MongoDB, GraphQL, WebSockets — pendientes de integración.
+
+## Estructura
+src/
+  application/       (casos de uso / servicios de aplicación)
+  domain/            (entidades, value objects, interfaces de repositorios)
+  infrastructure/
+    persistence/
+      postgres/      (Prisma + PrismaService)
+  presentation/      (controllers REST, resolvers GraphQL, DTOs)
+  auth/              (módulo de autenticación)
+  shared/           (config, decoradores, utils)
+
+## Onboarding rápido
+Ver [CONTRIBUTING.md](./CONTRIBUTING.md).
