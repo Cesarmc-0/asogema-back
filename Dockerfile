@@ -1,55 +1,57 @@
 # ---- Etapa 1: build ----
-FROM node:20.11-bookworm-slim AS build
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
-# Copiar manifests para cache de deps
-COPY package*.json ./
+# Instalar pnpm global
+RUN npm install -g pnpm@10
+
+# Copiar manifests y lock para cachear deps
+COPY package.json pnpm-lock.yaml .npmrc ./
 COPY prisma ./prisma
 
-# Timeouts npm mas tolerantes + instalar TODAS las deps (incluye dev para build)
-RUN npm config set fetch-retries 5 && \
-    npm config set fetch-retry-mintimeout 20000 && \
-    npm config set fetch-retry-maxtimeout 120000 && \
-    npm config set fetch-timeout 300000 && \
-    npm install --no-audit --no-fund
+# Instalar TODAS las deps (incluye dev para build)
+RUN pnpm install --frozen-lockfile
 
-# Generar el cliente Prisma (necesita el schema.prisma) y compilar NestJS
+# Generar el cliente Prisma y compilar NestJS
 COPY . .
-RUN npx prisma generate && npm run build
+RUN pnpm exec prisma generate && pnpm run build
 
 # ---- Etapa 2: produccion ----
-FROM node:20.11-bookworm-slim AS production
+FROM node:22-bookworm-slim AS production
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Instalar curl para el HEALTHCHECK (version pinneada para reproducibilidad)
+# Instalar pnpm global
+RUN npm install -g pnpm@10
+
+# Instalar curl para el HEALTHCHECK
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl=7.88.1-10+deb12u8 && \
+    apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Timeouts npm mas tolerantes + deps de produccion
-COPY package*.json ./
-RUN npm config set fetch-retries 5 && \
-    npm config set fetch-retry-mintimeout 20000 && \
-    npm config set fetch-retry-maxtimeout 120000 && \
-    npm config set fetch-timeout 300000 && \
-    npm install --omit=dev --no-audit --no-fund
+# Solo deps de produccion
+COPY package.json pnpm-lock.yaml .npmrc ./
+RUN pnpm install --frozen-lockfile --prod
 
 # Copiar el schema y el cliente Prisma generados desde etapa build
 COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 # Copiar el build de NestJS
 COPY --from=build /app/dist ./dist
 
-# Usuario no-root (principio de menor privilegio)
+# Darle ownership de /app al usuario node
+RUN chown -R node:node /app
+
+# Usuario no-root
 USER node
 
 EXPOSE 3000
 
-# Healthcheck: cada 30s chequea /health
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD curl --fail http://localhost:3000/health || exit 1
 
-CMD ["node", "dist/main"]
+CMD ["node", "dist/src/main"]
