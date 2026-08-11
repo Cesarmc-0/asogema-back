@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { GqlThrottlerGuard } from './gql-throttler.guard';
 import { RedisThrottlerStorage } from './redis-throttler.storage';
 
 @Global()
@@ -16,7 +17,7 @@ import { RedisThrottlerStorage } from './redis-throttler.storage';
   ],
   providers: [
     RedisThrottlerStorage,
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: GqlThrottlerGuard },
   ],
   exports: [RedisThrottlerStorage],
 })

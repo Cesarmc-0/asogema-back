@@ -7,6 +7,8 @@ import { RedisModule } from './infrastructure/persistence/redis/redis.module';
 import { HealthController } from './presentation/controllers/health.controller';
 import { BullModule } from '@nestjs/bullmq';
 import { RateLimitModule } from './infrastructure/persistence/redis/rate-limit.module';
+import { GraphqlModule } from './infrastructure/graphql/graphql.module';
+import { HotelModule } from './modules/hotel/hotel.module';
 
 @Module({
   imports: [
@@ -21,7 +23,9 @@ import { RateLimitModule } from './infrastructure/persistence/redis/rate-limit.m
     PostgresModule,
     RedisModule,
     RateLimitModule,
+    GraphqlModule,
     AuthModule,
+    HotelModule,
   ],
   controllers: [AppController, HealthController],
   providers: [],
