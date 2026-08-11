@@ -11,6 +11,7 @@ const mockUser = {
   rol_id: 2n,
   nombre: 'Test',
   apellido: 'User',
+  roles: { nombre: 'Cliente' },
 };
 
 const mockPrismaService = {
@@ -38,9 +39,11 @@ describe('JwtStrategy', () => {
       id: 1n,
       correo: 'test@test.com',
       rol: 2n,
+      rol_nombre: 'Cliente',
     });
     expect(mockPrismaService.usuarios.findUnique).toHaveBeenCalledWith({
       where: { id: 1n },
+      include: { roles: true },
     });
   });
 

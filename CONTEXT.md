@@ -1,6 +1,6 @@
 # CONTEXTO DEL PROYECTO - ASOGEMA-BACK
 
-> Archivo de seguimiento de sesión. Actualizado: 2026-07-25
+> Archivo de seguimiento de sesión. Actualizado: 2026-08-06
 > Propósito: permitir retomar el trabajo sin perder el hilo de decisiones y pendientes.
 
 ---
@@ -16,7 +16,7 @@ Es un sistema semiprofesional con:
 - CI: GitHub Actions en PR/push a develop y stage
 - Repositorio: https://github.com/Cesarmc-0/asogema-back
 - Local: ~/asogema-back/asogema-back
-- Rama actual: develop (sincronizada con remote, HEAD c8309b8)
+- Rama actual: develop (sincronizada con remote, HEAD 27ab0f1)
 
 ---
 
@@ -74,6 +74,15 @@ Es un sistema semiprofesional con:
 - **Decisiones pendientes**: access + refresh token (actualmente solo access)
 
 ### Otros
+- Módulos de negocio **integrados a develop** (merge squash, ramas borradas):
+  - `src/admin` → `AdminModule`: panel de KPIs, reservas del día, ingresos, socios (protegido con `@Roles('Administrador')`)
+  - `src/hotel` → `HotelModule`: habitaciones disponibles, reservas, mis reservas
+  - `src/restaurant` → `RestaurantModule`: menú, mesas disponibles, reservaciones
+  - `src/events` → `EventsModule`: salones, tipos de evento, reservas + `prisma/seed-negocio.ts`
+  - `app.module.ts` registra los 4 módulos de negocio + Auth
+- Rate limiting global con Redis storage (`@nestjs/throttler`, `RateLimitModule`) en develop
+- Fix CI: `node-version: 20.x` (cumple engines de `@angular-devkit` >=20.11.1)
+- Refactor `ChangePasswordUseCase` movido al `AuthRepository` (sin PrismaService directo) ya en develop
 - `.gitkeep` en carpetas Clean Architecture: application, domain, infrastructure, presentation
 - Parche BigInt→String en `src/main.ts` (necesario por PK bigint en BD)
 - `AppController` ya está en `presentation/controllers/app.controller.ts` ✅
@@ -105,16 +114,15 @@ Es un sistema semiprofesional con:
 
 ### Inmediato
 - [ ] Configurar branch protection en GitHub (main y stage requieren PR + CI verde)
-- [x] Mover `AppController` / `AppService` scaffold a presentation/ o eliminar
-- [ ] Agregar tests unitarios del módulo auth (cero tests existen todavía)
+- [x] Agregar tests unitarios del módulo auth (15 suites / 50 tests en verde)
 - [ ] Decidir sobre access + refresh token (actualmente solo access token)
 - [ ] Armar CD (continuous deployment) con webhook a Railway desde main
 - [ ] Considerar migrar estados varchar+CHECK de PG a enums reales (cosmético)
 
 ### Corto plazo
-- [ ] Implementar RBAC (el rol_id ya está en el JWT, falta validarlo en guards)
-- [ ] Rate limit con @nestjs/throttler + Redis store
-- [ ] Manejo centralizado de errores (Exception Filters NestJS)
+- [x] Implementar RBAC (guards globales JwtAuthGuard + RolesGuard con @Public/@Roles)
+- [x] Rate limit con @nestjs/throttler + Redis store (RateLimitModule)
+- [x] Manejo centralizado de errores (HttpExceptionFilter global)
 - [ ] Logger estructurado (Winston o Pino)
 
 ### Medio plazo
@@ -134,7 +142,7 @@ Es un sistema semiprofesional con:
 - [ ] Historial de develop incluye Revert + re-merge de docker-setup (confuso pero funcional)
 - [ ] Schema introspeccionado tiene CHECK constraints que Prisma no soporta nativo (estados como varchar+CHECK) - decisión pendiente: migrar a enums o dejar
 - [ ] `test/app.e2e-spec.ts` scaffold falla (espera "Hello World!" pero AppController devuelve JSON)
-- [ ] Cero tests unitarios (`*.spec.ts`) existen; Jest configurado pero sin usar
+- [x] Tests unitarios en verde (15 suites / 50 tests); faltaban specs y ya existen
 
 ---
 

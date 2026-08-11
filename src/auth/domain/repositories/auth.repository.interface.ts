@@ -1,4 +1,10 @@
-import { usuarios } from '@prisma/client';
+import { usuarios, Prisma } from '@prisma/client';
+
+export type UsuarioConRol = Prisma.usuariosGetPayload<{
+  include: { roles: true };
+}>;
+
+export type UsuarioWithRoles = UsuarioConRol;
 
 export interface CreateUsuarioInput {
   correo: string;
@@ -11,7 +17,21 @@ export interface CreateUsuarioInput {
   rol_id: number;
 }
 
+export interface UpdateProfileInput {
+  nombre?: string;
+  apellido?: string;
+  telefono?: string;
+  direccion?: string;
+  fecha_nacimiento?: Date;
+}
+
 export abstract class AuthRepository {
-  abstract findByEmail(correo: string): Promise<usuarios | null>;
+  abstract findByEmail(correo: string): Promise<UsuarioWithRoles | null>;
   abstract create(data: CreateUsuarioInput): Promise<usuarios>;
+  abstract findById(id: bigint): Promise<UsuarioConRol | null>;
+  abstract update(id: bigint, data: UpdateProfileInput): Promise<UsuarioConRol>;
+  abstract updatePassword(
+    id: bigint,
+    password_hash: string,
+  ): Promise<UsuarioConRol>;
 }

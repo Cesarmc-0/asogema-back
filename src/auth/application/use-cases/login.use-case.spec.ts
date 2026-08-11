@@ -15,6 +15,7 @@ const mockUser = {
   estado: true,
   nombre: 'Test',
   apellido: 'User',
+  roles: { nombre: 'RolTest' },
 };
 
 type MockUser = typeof mockUser;
@@ -52,6 +53,7 @@ describe('LoginUseCase', () => {
       apellido: 'User',
       correo: 'test@test.com',
       rol_id: 2,
+      rol_nombre: 'RolTest',
     });
   });
 
