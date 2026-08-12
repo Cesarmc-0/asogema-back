@@ -12,6 +12,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { RateLimitModule } from './infrastructure/persistence/redis/rate-limit.module';
 import { GraphqlModule } from './infrastructure/graphql/graphql.module';
 import { HotelFeatureModule } from './modules/hotel/hotel.module';
+import { HotelModule } from './hotel/hotel.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { HotelFeatureModule } from './modules/hotel/hotel.module';
     EventsModule,
     RestaurantModule,
     HotelFeatureModule,
+    HotelModule,
     AdminModule,
   ],
   controllers: [AppController, HealthController],
