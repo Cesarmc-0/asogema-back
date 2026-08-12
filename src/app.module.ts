@@ -4,13 +4,14 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { EventsModule } from './events/events.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
-import { HotelModule } from './hotel/hotel.module';
 import { AdminModule } from './admin/admin.module';
 import { PostgresModule } from './infrastructure/persistence/postgres/postgres.module';
 import { RedisModule } from './infrastructure/persistence/redis/redis.module';
 import { HealthController } from './presentation/controllers/health.controller';
 import { BullModule } from '@nestjs/bullmq';
 import { RateLimitModule } from './infrastructure/persistence/redis/rate-limit.module';
+import { GraphqlModule } from './infrastructure/graphql/graphql.module';
+import { HotelFeatureModule } from './modules/hotel/hotel.module';
 
 @Module({
   imports: [
@@ -25,10 +26,11 @@ import { RateLimitModule } from './infrastructure/persistence/redis/rate-limit.m
     PostgresModule,
     RedisModule,
     RateLimitModule,
+    GraphqlModule,
     AuthModule,
     EventsModule,
     RestaurantModule,
-    HotelModule,
+    HotelFeatureModule,
     AdminModule,
   ],
   controllers: [AppController, HealthController],

@@ -54,6 +54,10 @@ export class AuthModule implements OnModuleInit {
   constructor(private readonly createAdmin: CreateAdminService) {}
 
   async onModuleInit(): Promise<void> {
-    await this.createAdmin.ensureAdmin();
+    try {
+      await this.createAdmin.ensureAdmin();
+    } catch {
+      // fail-safe: BD inalcanzable en startup local
+    }
   }
 }
