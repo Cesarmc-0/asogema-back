@@ -1,6 +1,6 @@
 # CONTEXTO DEL PROYECTO - ASOGEMA-BACK
 
-> Archivo de seguimiento de sesión. Actualizado: 2026-08-06
+> Archivo de seguimiento de sesión. Actualizado: 2026-08-10
 > Propósito: permitir retomar el trabajo sin perder el hilo de decisiones y pendientes.
 
 ---
@@ -16,7 +16,7 @@ Es un sistema semiprofesional con:
 - CI: GitHub Actions en PR/push a develop y stage
 - Repositorio: https://github.com/Cesarmc-0/asogema-back
 - Local: ~/asogema-back/asogema-back
-- Rama actual: develop (sincronizada con remote, HEAD 27ab0f1)
+- Rama base: develop | Sesión actual: `feat/auth-refresh-token` (access/refresh tokens, pendiente PR)
 
 ---
 
@@ -27,7 +27,7 @@ Es un sistema semiprofesional con:
 - (Esta URL está en el .env local, NO commiteada)
 - Prisma 6 configurado con introspección del esquema real (21 modelos)
 - Archivos: `prisma/schema.prisma`, `src/infrastructure/persistence/postgres/`
-- cliente Prisma se genera con `npx prisma generate` (no commiteado)
+- cliente Prisma se genera con `pnpm exec prisma generate` (no commiteado)
 
 ### Redis (Docker local)
 - Imagen redis:7-alpine en `docker-compose.yml` con volumen y healthcheck
@@ -35,6 +35,7 @@ Es un sistema semiprofesional con:
 - Cliente ioredis + BullMQ para colas
 - Archivos: `src/infrastructure/persistence/redis/`
 - Para levantarlo: `docker compose up -d redis`
+- Los **refresh tokens** de auth se guardan en Redis con clave `auth:refresh:<token>` y TTL 7 días (rotación = un solo uso)
 
 ### Docker
 - `Dockerfile` multi-stage (bookworm-slim + prisma generate + healthcheck + user no-root)
@@ -45,7 +46,7 @@ Es un sistema semiprofesional con:
 - Workflow: `.github/workflows/ci.yml`
 - Triggers: PR y push a `develop` y `stage`
 - Job `quality`: lint + build + test
-- Cache npm automático | prisma generate incluido | Node 20.11
+- pnpm 10 + Node 22 (alineado con Dockerfile) | prisma generate incluido | lockfile `pnpm-lock.yaml` con `--frozen-lockfile`
 - Badge en README.md
 - Probado en GitHub: CI corrió verde en PR #6 a develop
 
@@ -58,9 +59,11 @@ Es un sistema semiprofesional con:
 - `GET /` → scaffold NestJS (getHello) - aún presente (pendiente eliminar)
 - `GET /health` → `{status, timestamp, uptime}`
 - `GET /health/redis` → `{status, redis}` (ping Redis)
-- `POST /auth/login` → login con JWT (bcrypt + passport-jwt)
-- `POST /auth/register` → registro de usuario
-- `GET /auth/perfil` → perfil del usuario autenticado (requiere JWT)
+- `POST /auth/tokens` → login: devuelve access token + refresh token + `expires_in`
+- `POST /auth/users` → registro de usuario
+- `POST /auth/refresh` → renueva el access token (rota el refresh: el anterior queda inválido)
+- `POST /auth/logout` → revoca el refresh token en Redis
+- `GET /auth/users/me` → perfil del usuario autenticado (requiere JWT)
 - `GET /docs` → Swagger UI
 
 ### Auth (COMPLETADO)
@@ -68,10 +71,15 @@ Es un sistema semiprofesional con:
 - Login: bcrypt para password hashing, JWT para tokens
 - Register: valida correo único, hashea password
 - Perfil: endpoint protegido con JWT strategy
+- **Access/refresh tokens implementados**:
+  - Access token JWT de vida corta (default `15m`, configurable con `JWT_EXPIRES_IN`)
+  - Refresh token opaco (96 chars) guardado en Redis con TTL (default `7d`, `JWT_REFRESH_EXPIRES_IN`)
+  - **Rotación**: cada uso de un refresh token lo invalida y emite uno nuevo
+  - **Revocación**: logout borra el refresh de Redis
+  - Piezas: `TokenService`, `RefreshTokenUseCase`, `LogoutUseCase`, `RefreshTokenRepository` (Redis)
 - No RBAC todavía (el `rol_id` está en el JWT payload pero no se valida)
 - Swagger documentado con `@ApiTags`, `@ApiOperation`, DTOs con validación
 - Deps instaladas: bcrypt, @nestjs/jwt, @nestjs/passport, passport-jwt
-- **Decisiones pendientes**: access + refresh token (actualmente solo access)
 
 ### Otros
 - Módulos de negocio **integrados a develop** (merge squash, ramas borradas):
@@ -103,10 +111,12 @@ Es un sistema semiprofesional con:
 | `?sslmode=require` en URL PostgreSQL | Railway soporta SSL, mejor para prod |
 | Clean Architecture: carpetas vacías con .gitkeep | onboarding devs en formación, esqueleto visible |
 | CI solo en PR/push a develop y stage | main se protege con branch protection aparte, futuro |
-| npm (no pnpm) | ya estaba configurado, devs en formación lo conocen |
+| pnpm (no npm) | migrado en develop (Dockerfile + CI + `.npmrc` con `node-linker=hoisted`); lockfile `pnpm-lock.yaml` |
 | Conventional Commits | ya lo venían usando, se documentó en CONTRIBUTING |
 | Squash and merge | historial limpio, un commit por PR |
 | Feature branch para infraestructura | Gitflow puro, probar CI en PR antes de develop |
+| Refresh token opaco (no JWT) + almacenado en Redis | permite revocación real y rotación; un JWT de refresh no se puede invalidar por sí solo |
+| Access token corto (15m) + refresh largo (7d) | limita la ventana de riesgo del access y evita re-login frecuente |
 
 ---
 
@@ -114,8 +124,8 @@ Es un sistema semiprofesional con:
 
 ### Inmediato
 - [ ] Configurar branch protection en GitHub (main y stage requieren PR + CI verde)
-- [x] Agregar tests unitarios del módulo auth (15 suites / 50 tests en verde)
-- [ ] Decidir sobre access + refresh token (actualmente solo access token)
+- [x] Agregar tests unitarios del módulo auth (19 suites / 64 tests en verde)
+- [x] Access + refresh token con rotación y revocación (en `feat/auth-refresh-token`, pendiente PR a develop)
 - [ ] Armar CD (continuous deployment) con webhook a Railway desde main
 - [ ] Considerar migrar estados varchar+CHECK de PG a enums reales (cosmético)
 
@@ -142,7 +152,7 @@ Es un sistema semiprofesional con:
 - [ ] Historial de develop incluye Revert + re-merge de docker-setup (confuso pero funcional)
 - [ ] Schema introspeccionado tiene CHECK constraints que Prisma no soporta nativo (estados como varchar+CHECK) - decisión pendiente: migrar a enums o dejar
 - [ ] `test/app.e2e-spec.ts` scaffold falla (espera "Hello World!" pero AppController devuelve JSON)
-- [x] Tests unitarios en verde (15 suites / 50 tests); faltaban specs y ya existen
+- [x] Tests unitarios en verde (19 suites / 64 tests); faltaban specs y ya existen
 
 ---
 
@@ -156,23 +166,28 @@ git status
 git log --oneline -10
 
 # Verificar que build pasa
-npm run lint && npm run build && npm test
+pnpm run lint && pnpm run build && pnpm test
 
 # Levantar Redis local
 docker compose up -d redis
 
 # Levantar backend en dev
-npm run start:dev
+pnpm run start:dev
 
 # Endpoints
 curl http://localhost:3000/health
 curl http://localhost:3000/health/redis
 
+# Auth (access + refresh token)
+curl -X POST http://localhost:3000/auth/tokens -H "Content-Type: application/json" -d '{"correo":"TU_CORREO","password":"TU_PASS"}'
+curl -X POST http://localhost:3000/auth/refresh -H "Content-Type: application/json" -d '{"refresh_token":"TU_REFRESH"}'
+curl -X POST http://localhost:3000/auth/logout -H "Content-Type: application/json" -d '{"refresh_token":"TU_REFRESH"}'
+
 # Prisma
-npx prisma validate
-npx prisma generate
-npx prisma studio
-npm run prisma:pull
+pnpm exec prisma validate
+pnpm exec prisma generate
+pnpm exec prisma studio
+pnpm run prisma:pull
 ```
 
 ---
@@ -181,9 +196,9 @@ npm run prisma:pull
 
 1. Leer este archivo `CONTEXT.md`
 2. Verificar estado git: `git status && git log --oneline -3 && git branch --show-current`
-3. Verificar que build pasa: `npm run lint && npm run build && npm test`
+3. Verificar que build pasa: `pnpm run lint && pnpm run build && pnpm test`
 4. Verificar que Redis está corriendo: `docker compose up -d redis`
-5. Levantar backend: `npm run start:dev`
+5. Levantar backend: `pnpm run start:dev`
 6. Verificar endpoints: `curl http://localhost:3000/health` y `curl http://localhost:3000/docs`
 7. Revisar pendientes en la sección 4 de este archivo
 

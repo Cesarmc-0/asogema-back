@@ -7,7 +7,11 @@ import type { Request } from 'express';
 export class GqlThrottlerGuard extends ThrottlerGuard {
   protected async getTracker(req: Record<string, unknown>): Promise<string> {
     // Si Nest pasó un ExecutionContext, detectarlo por switchToHttp
-    if (req && typeof (req as unknown as { switchToHttp?: () => void }).switchToHttp === 'function') {
+    if (
+      req &&
+      typeof (req as unknown as { switchToHttp?: () => void }).switchToHttp ===
+        'function'
+    ) {
       const ctx = req as unknown as ExecutionContext;
       const gqlCtx = GqlExecutionContext.create(ctx);
       const ctxObj = gqlCtx.getContext<{ req?: Request; request?: Request }>();
@@ -16,9 +20,7 @@ export class GqlThrottlerGuard extends ThrottlerGuard {
     }
 
     // req es un objeto con .req o .request
-    const possibleReq = (req as Record<string, unknown>).req ?? 
-                        (req as Record<string, unknown>).request ?? 
-                        req;
+    const possibleReq = req.req ?? req.request ?? req;
     const ipValue = (possibleReq as { ip?: string }).ip ?? 'unknown';
     return await Promise.resolve(ipValue);
   }

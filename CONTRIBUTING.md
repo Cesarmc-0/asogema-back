@@ -80,8 +80,8 @@ cd asogema-back
 git checkout develop
 git pull origin develop
 
-# 3. Instalar dependencias
-npm install
+# 3. Instalar dependencias (pnpm)
+pnpm install
 
 # 4. Configurar variables de entorno
 
@@ -113,10 +113,10 @@ cp .env.example .env
 ```
 
 # 5. Generar el cliente Prisma tipado
-npx prisma generate
+pnpm exec prisma generate
 
 # 6. Levantar la app
-npm run start:dev      # http://localhost:3000
+pnpm run start:dev      # http://localhost:3000
 ```
 
 ---
@@ -128,9 +128,9 @@ npm run start:dev      # http://localhost:3000
 git checkout -b feature/mi-feature
 
 # ...desarrollar... correr tests locales...
-npm run lint
-npm run build
-npm test
+pnpm run lint
+pnpm run build
+pnpm test
 
 # Commitear (Conventional Commits)
 git add .
@@ -149,16 +149,16 @@ El esquema de la BD **ya existe en Railway**. Prisma opera en modo **introspecci
 
 | Quiero... | Comando |
 |-----------|---------|
-| Validar el schema | `npm run prisma:validate` |
-| Regenerar el cliente TS tipado | `npm run prisma:generate` |
-| Sincronizar el schema desde la BD (si cambió fuera del ORM) | `npm run prisma:pull` |
-| Inspeccionar datos en GUI web | `npm run prisma:studio` |
-| Crear migración nueva (cuando empecemos a evolucionar schema desde el ORM) | `npm run prisma:migrate` |
+| Validar el schema | `pnpm run prisma:validate` |
+| Regenerar el cliente TS tipado | `pnpm run prisma:generate` |
+| Sincronizar el schema desde la BD (si cambió fuera del ORM) | `pnpm run prisma:pull` |
+| Inspeccionar datos en GUI web | `pnpm run prisma:studio` |
+| Crear migración nueva (cuando empecemos a evolucionar schema desde el ORM) | `pnpm run prisma:migrate` |
 
 ### Reglas con Prisma
 - **No editar `prisma/schema.prisma` a mano** salvo en migraciones controladas.
-- Si la BD cambia (otro dev, SQL directo): `npm run prisma:pull` + commitear schema + avisar al equipo para que corran `prisma:generate`.
-- Antes de un PR que toque datos: `npx prisma validate` debe pasar.
+- Si la BD cambia (otro dev, SQL directo): `pnpm run prisma:pull` + commitear schema + avisar al equipo para que corran `prisma:generate`.
+- Antes de un PR que toque datos: `pnpm exec prisma validate` debe pasar.
 
 ---
 
@@ -216,8 +216,8 @@ Capas y dependencias:
 - TypeScript estricto (`tsconfig.json` ya configurado).
 - Prettier + ESLint ya configurados. Correr antes de commitear:
   ```bash
-  npm run lint
-  npm run format
+  pnpm run lint
+  pnpm run format
   ```
 - `ValidationPipe` global activo con `whitelist`, `forbidNonWhitelisted` y `transform`.
 - No usar `any`. Tipar todo.
@@ -227,9 +227,9 @@ Capas y dependencias:
 
 ## 10. Tests
 
-- Unit tests: `*.spec.ts` junto al archivo. Correr con `npm test`.
-- E2E tests: carpeta `test/`. Correr con `npm run test:e2e`.
-- Cobertura: `npm run test:cov`.
+- Unit tests: `*.spec.ts` junto al archivo. Correr con `pnpm test`.
+- E2E tests: carpeta `test/`. Correr con `pnpm run test:e2e`.
+- Cobertura: `pnpm run test:cov`.
 
 Todo PR con feature nueva debe incluir al menos un test unitario del servicio.
 
