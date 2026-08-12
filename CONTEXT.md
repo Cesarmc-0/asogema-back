@@ -27,7 +27,7 @@ Es un sistema semiprofesional con:
 - (Esta URL está en el .env local, NO commiteada)
 - Prisma 6 configurado con introspección del esquema real (21 modelos)
 - Archivos: `prisma/schema.prisma`, `src/infrastructure/persistence/postgres/`
-- cliente Prisma se genera con `npx prisma generate` (no commiteado)
+- cliente Prisma se genera con `pnpm exec prisma generate` (no commiteado)
 
 ### Redis (Docker local)
 - Imagen redis:7-alpine en `docker-compose.yml` con volumen y healthcheck
@@ -46,7 +46,7 @@ Es un sistema semiprofesional con:
 - Workflow: `.github/workflows/ci.yml`
 - Triggers: PR y push a `develop` y `stage`
 - Job `quality`: lint + build + test
-- Cache npm automático | prisma generate incluido | Node 20.11
+- pnpm 10 + Node 22 (alineado con Dockerfile) | prisma generate incluido | lockfile `pnpm-lock.yaml` con `--frozen-lockfile`
 - Badge en README.md
 - Probado en GitHub: CI corrió verde en PR #6 a develop
 
@@ -111,7 +111,7 @@ Es un sistema semiprofesional con:
 | `?sslmode=require` en URL PostgreSQL | Railway soporta SSL, mejor para prod |
 | Clean Architecture: carpetas vacías con .gitkeep | onboarding devs en formación, esqueleto visible |
 | CI solo en PR/push a develop y stage | main se protege con branch protection aparte, futuro |
-| npm (no pnpm) | ya estaba configurado, devs en formación lo conocen |
+| pnpm (no npm) | migrado en develop (Dockerfile + CI + `.npmrc` con `node-linker=hoisted`); lockfile `pnpm-lock.yaml` |
 | Conventional Commits | ya lo venían usando, se documentó en CONTRIBUTING |
 | Squash and merge | historial limpio, un commit por PR |
 | Feature branch para infraestructura | Gitflow puro, probar CI en PR antes de develop |
@@ -166,13 +166,13 @@ git status
 git log --oneline -10
 
 # Verificar que build pasa
-npm run lint && npm run build && npm test
+pnpm run lint && pnpm run build && pnpm test
 
 # Levantar Redis local
 docker compose up -d redis
 
 # Levantar backend en dev
-npm run start:dev
+pnpm run start:dev
 
 # Endpoints
 curl http://localhost:3000/health
@@ -184,10 +184,10 @@ curl -X POST http://localhost:3000/auth/refresh -H "Content-Type: application/js
 curl -X POST http://localhost:3000/auth/logout -H "Content-Type: application/json" -d '{"refresh_token":"TU_REFRESH"}'
 
 # Prisma
-npx prisma validate
-npx prisma generate
-npx prisma studio
-npm run prisma:pull
+pnpm exec prisma validate
+pnpm exec prisma generate
+pnpm exec prisma studio
+pnpm run prisma:pull
 ```
 
 ---
@@ -196,9 +196,9 @@ npm run prisma:pull
 
 1. Leer este archivo `CONTEXT.md`
 2. Verificar estado git: `git status && git log --oneline -3 && git branch --show-current`
-3. Verificar que build pasa: `npm run lint && npm run build && npm test`
+3. Verificar que build pasa: `pnpm run lint && pnpm run build && pnpm test`
 4. Verificar que Redis está corriendo: `docker compose up -d redis`
-5. Levantar backend: `npm run start:dev`
+5. Levantar backend: `pnpm run start:dev`
 6. Verificar endpoints: `curl http://localhost:3000/health` y `curl http://localhost:3000/docs`
 7. Revisar pendientes en la sección 4 de este archivo
 
