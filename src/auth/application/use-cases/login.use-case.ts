@@ -20,7 +20,7 @@ export class LoginUseCase {
 
     const valid = await bcrypt.compare(dto.password, user.password_hash);
     if (!valid) throw new UnauthorizedException('credenciales invalidas');
-    
+
     const access_token = this.tokenService.signAccessToken(user);
     const refresh_token = this.tokenService.generateRefreshToken();
 
