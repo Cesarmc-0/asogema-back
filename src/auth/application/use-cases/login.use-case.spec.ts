@@ -1,7 +1,8 @@
 jest.mock('bcrypt');
 import { LoginUseCase } from './login.use-case';
 import { AuthRepository } from '../../../auth/domain/repositories/auth.repository.interface';
-import { JwtService } from '@nestjs/jwt';
+import { RefreshTokenRepository } from '../../../auth/domain/repositories/refresh-token.repository.interface';
+import { TokenService } from '../services/token.service';
 import { UnauthorizedException } from '@nestjs/common';
 import { LoginDto } from '../../../auth/presentation/dto/login.dto';
 import * as bcrypt from 'bcrypt';
@@ -24,20 +25,31 @@ const mockAuthRepository = {
   findByEmail: () => Promise.resolve(mockUser),
 } as unknown as AuthRepository;
 
-const mockJwtService = {
-  sign: () => 'fake_jwt_token',
-} as unknown as JwtService;
+const mockRefreshTokenRepository = {
+  save: jest.fn().mockResolvedValue(undefined),
+} as unknown as RefreshTokenRepository;
+
+const mockTokenService = {
+  signAccessToken: jest.fn(() => 'fake_jwt_token'),
+  generateRefreshToken: jest.fn(() => 'fake_refresh_token'),
+  getRefreshTtlSeconds: jest.fn(() => 604800),
+  getAccessExpiresIn: jest.fn(() => '15m'),
+} as unknown as TokenService;
 
 describe('LoginUseCase', () => {
   let useCase: LoginUseCase;
 
   beforeEach(() => {
-    useCase = new LoginUseCase(mockAuthRepository, mockJwtService);
+    useCase = new LoginUseCase(
+      mockAuthRepository,
+      mockTokenService,
+      mockRefreshTokenRepository,
+    );
 
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
   });
   //--------------caso exitoso-----------------
-  it('login exitoso: devuelve acces_token y usuario', async () => {
+  it('login exitoso: devuelve access token, refresh token y usuario', async () => {
     const dto: LoginDto = {
       correo: 'test@test.com',
       password: '123456',
@@ -46,6 +58,8 @@ describe('LoginUseCase', () => {
     const result = await useCase.execute(dto);
 
     expect(result.access_token).toBe('fake_jwt_token');
+    expect(result.refresh_token).toBe('fake_refresh_token');
+    expect(result.expires_in).toBe('15m');
 
     expect(result.usuario).toEqual({
       id: 1n,
@@ -55,6 +69,21 @@ describe('LoginUseCase', () => {
       rol_id: 2,
       rol_nombre: 'RolTest',
     });
+  });
+
+  it('persiste el refresh token en el repositorio', async () => {
+    const dto: LoginDto = {
+      correo: 'test@test.com',
+      password: '123456',
+    };
+
+    await useCase.execute(dto);
+
+    expect(mockRefreshTokenRepository.save).toHaveBeenCalledWith(
+      'fake_refresh_token',
+      '1',
+      604800,
+    );
   });
 
   //--------------Usario no encontrado---------------

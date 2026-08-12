@@ -1,14 +1,16 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthRepository } from '../../domain/repositories/auth.repository.interface';
+import { RefreshTokenRepository } from '../../domain/repositories/refresh-token.repository.interface';
+import { TokenService } from '../services/token.service';
 import { LoginDto } from '../../presentation/dto/login.dto';
 
 @Injectable()
 export class LoginUseCase {
   constructor(
     private authRepository: AuthRepository,
-    private jwtService: JwtService,
+    private tokenService: TokenService,
+    private refreshTokenRepository: RefreshTokenRepository,
   ) {}
 
   async execute(dto: LoginDto) {
@@ -18,17 +20,20 @@ export class LoginUseCase {
 
     const valid = await bcrypt.compare(dto.password, user.password_hash);
     if (!valid) throw new UnauthorizedException('credenciales invalidas');
+    
+    const access_token = this.tokenService.signAccessToken(user);
+    const refresh_token = this.tokenService.generateRefreshToken();
 
-    const payload = {
-      sub: user.id.toString(),
-      correo: user.correo,
-      rol: user.rol_id.toString(),
-      rol_nombre: user.roles.nombre,
-    };
-    const access_token = this.jwtService.sign(payload);
+    await this.refreshTokenRepository.save(
+      refresh_token,
+      user.id.toString(),
+      this.tokenService.getRefreshTtlSeconds(),
+    );
 
     return {
       access_token,
+      expires_in: this.tokenService.getAccessExpiresIn(),
+      refresh_token,
       usuario: {
         id: user.id,
         nombre: user.nombre,

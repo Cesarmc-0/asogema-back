@@ -10,10 +10,13 @@ import { LoginUseCase } from 'src/auth/application/use-cases/login.use-case';
 import { RegisterUseCase } from 'src/auth/application/use-cases/register.use-case';
 import { UpdateProfileUseCase } from 'src/auth/application/use-cases/update-profile.use-case';
 import { ChangePasswordUseCase } from 'src/auth/application/use-cases/change-password.use-case';
+import { RefreshTokenUseCase } from 'src/auth/application/use-cases/refresh-token.use-case';
+import { LogoutUseCase } from 'src/auth/application/use-cases/logout.use-case';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
+import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { CurrentUser } from '../dto/decorators/current-user.decorator';
 import { Public } from '../dto/decorators/public.decorator';
 import type { AuthenticatedUser } from 'src/auth/domain/interfaces/authenticated-user.interface';
@@ -26,6 +29,8 @@ export class AuthController {
     private readonly registerUseCase: RegisterUseCase,
     private readonly updateProfileUseCase: UpdateProfileUseCase,
     private readonly changePasswordUseCase: ChangePasswordUseCase,
+    private readonly refreshTokenUseCase: RefreshTokenUseCase,
+    private readonly logoutUseCase: LogoutUseCase,
   ) {}
 
   @Public()
@@ -44,6 +49,26 @@ export class AuthController {
   @Post('users')
   register(@Body() dto: RegisterDto) {
     return this.registerUseCase.execute(dto);
+  }
+
+  @Public()
+  @ApiOperation({ summary: 'Renovar access token con refresh token' })
+  @ApiResponse({ status: 201, description: 'Nuevo par de tokens emitido' })
+  @ApiResponse({
+    status: 401,
+    description: 'Refresh token inválido o revocado',
+  })
+  @Post('refresh')
+  refresh(@Body() dto: RefreshTokenDto) {
+    return this.refreshTokenUseCase.execute(dto);
+  }
+
+  @Public()
+  @ApiOperation({ summary: 'Cerrar sesión y revocar refresh token' })
+  @ApiResponse({ status: 201, description: 'Sesión cerrada' })
+  @Post('logout')
+  logout(@Body() dto: RefreshTokenDto) {
+    return this.logoutUseCase.execute(dto);
   }
 
   @ApiBearerAuth()
