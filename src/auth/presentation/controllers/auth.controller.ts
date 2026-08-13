@@ -12,11 +12,13 @@ import { UpdateProfileUseCase } from 'src/auth/application/use-cases/update-prof
 import { ChangePasswordUseCase } from 'src/auth/application/use-cases/change-password.use-case';
 import { RefreshTokenUseCase } from 'src/auth/application/use-cases/refresh-token.use-case';
 import { LogoutUseCase } from 'src/auth/application/use-cases/logout.use-case';
+import { VerifyEmailUseCase } from 'src/auth/application/use-cases/verify-email.use-case';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
+import { VerifyEmailDto } from '../dto/verify-email.dto';
 import { CurrentUser } from '../dto/decorators/current-user.decorator';
 import { Public } from '../dto/decorators/public.decorator';
 import type { AuthenticatedUser } from 'src/auth/domain/interfaces/authenticated-user.interface';
@@ -31,6 +33,7 @@ export class AuthController {
     private readonly changePasswordUseCase: ChangePasswordUseCase,
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
     private readonly logoutUseCase: LogoutUseCase,
+    private readonly verifyEmailUseCase: VerifyEmailUseCase,
   ) {}
 
   @Public()
@@ -49,6 +52,18 @@ export class AuthController {
   @Post('users')
   register(@Body() dto: RegisterDto) {
     return this.registerUseCase.execute(dto);
+  }
+
+  @Public()
+  @ApiOperation({
+    summary: 'Verificar correo electrónico con código de 6 dígitos',
+  })
+  @ApiResponse({ status: 201, description: 'Correo verificado' })
+  @ApiResponse({ status: 401, description: 'Código incorrecto o expirado' })
+  @ApiResponse({ status: 429, description: 'Demasiados intentos' })
+  @Post('verify-email')
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.verifyEmailUseCase.execute(dto);
   }
 
   @Public()

@@ -10,8 +10,10 @@ import { UpdateProfileUseCase } from './application/use-cases/update-profile.use
 import { ChangePasswordUseCase } from './application/use-cases/change-password.use-case';
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case';
 import { LogoutUseCase } from './application/use-cases/logout.use-case';
+import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-case';
 import { CreateAdminService } from './application/use-cases/create-admin.use-case';
 import { TokenService } from './application/services/token.service';
+import { EmailVerificationService } from './application/services/email-verification.service';
 import { AuthRepository } from './domain/repositories/auth.repository.interface';
 import { RefreshTokenRepository } from './domain/repositories/refresh-token.repository.interface';
 import { AuthRepositoryImpl } from './infrastructure/persistence/auth.repository';
@@ -38,8 +40,10 @@ import { RolesGuard } from './infrastructure/guards/roles.guard';
     ChangePasswordUseCase,
     RefreshTokenUseCase,
     LogoutUseCase,
+    VerifyEmailUseCase,
     CreateAdminService,
     TokenService,
+    EmailVerificationService,
     JwtStrategy,
     { provide: AuthRepository, useClass: AuthRepositoryImpl },
     {

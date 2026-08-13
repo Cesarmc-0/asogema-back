@@ -8,6 +8,13 @@ export type MesaConReservas = Prisma.mesasGetPayload<{
   include: { reservas_restaurante: true };
 }>;
 
+export type ReservaRestauranteConMesa = Prisma.reservas_restauranteGetPayload<{
+  include: {
+    mesas: true;
+    usuarios: { select: { nombre: true; apellido: true; telefono: true } };
+  };
+}>;
+
 export interface CreateReservationInput {
   usuario_id: bigint;
   mesa_id: bigint;
@@ -29,5 +36,7 @@ export abstract class RestaurantRepository {
   abstract getAvailableTables(
     query: AvailableTablesQuery,
   ): Promise<MesaConReservas[]>;
-  abstract createReservation(data: CreateReservationInput): Promise<any>;
+  abstract createReservation(
+    data: CreateReservationInput,
+  ): Promise<ReservaRestauranteConMesa>;
 }

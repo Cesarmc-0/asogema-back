@@ -45,7 +45,6 @@ export class RestaurantController {
     @Body() dto: CreateReservationDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return this.reservationUseCase.execute(user.id, {
       mesa_id: BigInt(dto.mesa_id),
       fecha: new Date(dto.fecha),

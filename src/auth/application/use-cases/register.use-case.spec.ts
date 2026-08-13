@@ -2,6 +2,7 @@ jest.mock('bcrypt');
 import { RegisterUseCase } from './register.use-case';
 import { AuthRepository } from '../../../auth/domain/repositories/auth.repository.interface';
 import { PrismaService } from '../../../infrastructure/persistence/postgres/prisma.service';
+import { EmailSender } from '../../../infrastructure/mail/domain/email-sender.interface';
 import { ConflictException } from '@nestjs/common';
 import { RegisterDto } from '../../../auth/presentation/dto/register.dto';
 import * as bcrypt from 'bcrypt';
@@ -30,16 +31,37 @@ const mockPrismaService = {
   },
 } as unknown as PrismaService;
 
+const mockEmailVerification = {
+  generateCode: jest.fn(),
+} as any;
+
+const mockEmailSender = {
+  sendWelcomeVerification: jest.fn(),
+} as unknown as EmailSender;
+
 describe('RegisterUseCase', () => {
   let useCase: RegisterUseCase;
 
   beforeEach(() => {
-    useCase = new RegisterUseCase(mockAuthRepository, mockPrismaService);
+    useCase = new RegisterUseCase(
+      mockAuthRepository,
+      mockPrismaService,
+      mockEmailVerification,
+      mockEmailSender,
+    );
     (mockPrismaService.roles.findFirst as jest.Mock).mockResolvedValue({
       id: 2n,
       nombre: 'Cliente',
     });
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_password');
+    mockEmailVerification.generateCode.mockResolvedValue('123456');
+    (mockEmailSender.sendWelcomeVerification as jest.Mock).mockResolvedValue(
+      undefined,
+    );
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   it('registro exitoso: devuelve usuario creado', async () => {
@@ -101,5 +123,46 @@ describe('RegisterUseCase', () => {
     await useCase.execute(dto);
 
     expect(bcrypt.hash).toHaveBeenCalledWith('micontraseña', 10);
+  });
+
+  it('genera código de verificación y envía correo de bienvenida', async () => {
+    const dto: RegisterDto = {
+      nombre: 'Nuevo',
+      apellido: 'Usuario',
+      tipo_documento_id: 1,
+      numero_documento: '12345678',
+      correo: 'nuevo@test.com',
+      password: '123456',
+      telefono: '3001234567',
+    };
+
+    await useCase.execute(dto);
+
+    expect(mockEmailVerification.generateCode).toHaveBeenCalledWith(
+      'nuevo@test.com',
+    );
+    expect(mockEmailSender.sendWelcomeVerification).toHaveBeenCalledWith({
+      nombre: 'Nuevo Usuario',
+      correo: 'nuevo@test.com',
+      codigo: '123456',
+    });
+  });
+
+  it('el registro no falla si el envío de correo falla', async () => {
+    mockEmailVerification.generateCode.mockRejectedValue(
+      new Error('Redis caído'),
+    );
+
+    const dto: RegisterDto = {
+      nombre: 'Nuevo',
+      apellido: 'Usuario',
+      tipo_documento_id: 1,
+      numero_documento: '12345678',
+      correo: 'nuevo@test.com',
+      password: '123456',
+      telefono: '3001234567',
+    };
+
+    await expect(useCase.execute(dto)).resolves.toEqual(mockUser);
   });
 });

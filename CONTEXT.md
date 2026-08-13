@@ -1,6 +1,6 @@
 # CONTEXTO DEL PROYECTO - ASOGEMA-BACK
 
-> Archivo de seguimiento de sesión. Actualizado: 2026-08-10
+> Archivo de seguimiento de sesión. Actualizado: 2026-08-13
 > Propósito: permitir retomar el trabajo sin perder el hilo de decisiones y pendientes.
 
 ---
@@ -16,7 +16,7 @@ Es un sistema semiprofesional con:
 - CI: GitHub Actions en PR/push a develop y stage
 - Repositorio: https://github.com/Cesarmc-0/asogema-back
 - Local: ~/asogema-back/asogema-back
-- Rama base: develop | Sesión actual: `feat/auth-refresh-token` (access/refresh tokens, pendiente PR)
+- Rama base: develop | Sesión actual: `feat/email-notifications` (verificación de correo + notificaciones por email, PR a develop)
 
 ---
 
@@ -29,13 +29,15 @@ Es un sistema semiprofesional con:
 - Archivos: `prisma/schema.prisma`, `src/infrastructure/persistence/postgres/`
 - cliente Prisma se genera con `pnpm exec prisma generate` (no commiteado)
 
-### Redis (Docker local)
-- Imagen redis:7-alpine en `docker-compose.yml` con volumen y healthcheck
-- Variables: `REDIS_URL=redis://localhost:6379` en .env
-- Cliente ioredis + BullMQ para colas
+### Redis (nativo en WSL Ubuntu)
+- **Redis 8.0.5 instalado en WSL Ubuntu** como servicio systemd (`redis-server.service`, enabled, autostart). Sin Docker en esta máquina.
+- Red de WSL en modo **`mirrored`** (`networkingMode=mirrored`) + **`instanceIdleTimeout=-1`** y `vmIdleTimeout=-1` en `C:\Users\rodri\.wslconfig` — evita que la VM se apague por inactividad (mataba Redis cada ~1 min) y el relay NAT inestable.
+- Variables: `REDIS_URL=redis://127.0.0.1:6379` en .env (usar `127.0.0.1`, NO `localhost`: en Windows `localhost` resuelve a IPv6 `::1` y falla).
+- Cliente ioredis + BullMQ para colas (BullMQ exige Redis >= 5; 8.0.5 OK)
 - Archivos: `src/infrastructure/persistence/redis/`
-- Para levantarlo: `docker compose up -d redis`
+- Para levantarlo: abrir WSL (redis arranca solo). `wsl --shutdown` **mata Redis** (apaga la VM) — hay que volver a abrir WSL.
 - Los **refresh tokens** de auth se guardan en Redis con clave `auth:refresh:<token>` y TTL 7 días (rotación = un solo uso)
+- `RedisService` endurecido: si Redis está caído al arrancar, loguea y reintenta en vez de tumbar el proceso (`redis.service.ts`)
 
 ### Docker
 - `Dockerfile` multi-stage (bookworm-slim + prisma generate + healthcheck + user no-root)
@@ -60,7 +62,8 @@ Es un sistema semiprofesional con:
 - `GET /health` → `{status, timestamp, uptime}`
 - `GET /health/redis` → `{status, redis}` (ping Redis)
 - `POST /auth/tokens` → login: devuelve access token + refresh token + `expires_in`
-- `POST /auth/users` → registro de usuario
+- `POST /auth/users` → registro de usuario (envía correo de bienvenida + código de verificación)
+- `POST /auth/verify-email` → valida código de 6 dígitos y marca `correo_verificado=true`
 - `POST /auth/refresh` → renueva el access token (rota el refresh: el anterior queda inválido)
 - `POST /auth/logout` → revoca el refresh token en Redis
 - `GET /auth/users/me` → perfil del usuario autenticado (requiere JWT)
@@ -80,6 +83,24 @@ Es un sistema semiprofesional con:
 - No RBAC todavía (el `rol_id` está en el JWT payload pero no se valida)
 - Swagger documentado con `@ApiTags`, `@ApiOperation`, DTOs con validación
 - Deps instaladas: bcrypt, @nestjs/jwt, @nestjs/passport, passport-jwt
+- **Verificación de correo (COMPLETADO)**:
+  - Columna `correo_verificado boolean NOT NULL DEFAULT false` agregada en `usuarios` (vía SQL en Railway + schema actualizado)
+  - Código de 6 dígitos hasheado (SHA-256) en Redis `auth:verify:<correo>`, TTL 10 min, un solo uso, máx 5 intentos (`auth:verify:attempts:<correo>`)
+  - Piezas: `EmailVerificationService`, `VerifyEmailUseCase`, endpoint `POST /auth/verify-email`
+
+### Notificaciones por correo (COMPLETADO)
+- Módulo `src/infrastructure/mail/` (@Global, Clean Architecture):
+  - `domain/email-sender.interface.ts` → port `EmailSender` (`sendWelcomeVerification`, `sendBookingConfirmation`, `sendPurchaseReceipt`)
+  - `application/notification.service.ts` → encola jobs en BullMQ `email-queue` (3 intentos, backoff exponencial); **no lanza errores** (el correo nunca rompe un registro/reserva)
+  - `application/email-queue.processor.ts` → worker que envía vía SMTP
+  - `infrastructure/nodemailer-mailer.ts` → adaptador nodemailer + variables `MAIL_*`
+  - `infrastructure/templates/*.hbs` → 5 templates Handlebars (welcome-verification, hotel-booking, event-booking, restaurant-reservation, purchase-receipt)
+- **DI**: use-cases inyectan `EmailSender` (resuelve a `NotificationService` = cola); el worker usa `NodemailerMailer` directo
+- Puntos de enganche: `RegisterUseCase` (welcome+código), `CreateHotelBookingUseCase`, `CreateEventBookingUseCase`, `CreateRestaurantReservationUseCase` (confirmaciones)
+- Recibo de compra: **template listo sin wiring** (no existe flujo de facturación aún)
+- `nest-cli.json` copia los `.hbs` a `dist/src` en el build
+- Deps nuevas: `nodemailer`, `handlebars`, `@types/nodemailer`
+- **VERIFICADO end-to-end (2026-08-13)**: registro → encola `email-queue` → envío SMTP Gmail con App Password real (`Correo welcome-verification -> <correo>`) → código recibido en inbox → `POST /auth/verify-email` responde 201 y deja `correo_verificado=true` en BD → reuso del código da 401 (one-time). Usuario de prueba borrado después de la prueba.
 
 ### Otros
 - Módulos de negocio **integrados a develop** (merge squash, ramas borradas):
@@ -118,12 +139,19 @@ Es un sistema semiprofesional con:
 | Feature branch para infraestructura | Gitflow puro, probar CI en PR antes de develop |
 | Refresh token opaco (no JWT) + almacenado en Redis | permite revocación real y rotación; un JWT de refresh no se puede invalidar por sí solo |
 | Access token corto (15m) + refresh largo (7d) | limita la ventana de riesgo del access y evita re-login frecuente |
+| Correo con nodemailer + SMTP Gmail (sin `@nestjs-modules/mailer`) | proyecto del wrapper archivado; adaptador propio = control total |
+| Envío de correo vía cola BullMQ `email-queue` | SMTP es lento: no bloquea el HTTP response ni hace fallar una reserva; reintentos automáticos |
+| Use-cases dependen del port `EmailSender`, no de nodemailer | DIP: cambiar de proveedor (SMTP→Resend/SendGrid) toca solo el adaptador |
+| Código de verificación en Redis (SHA-256) + TTL 10 min | mismo patrón que refresh tokens: expiración, one-time y rate-limit gratis |
+| Templates Handlebars `.hbs` | editables por gente no técnica; copiados a dist vía assets de nest-cli |
+| Redis nativo en WSL (mirrored) en vez de Docker | Docker no está instalado en esta máquina; BullMQ exige Redis >= 5 (el viejo 3.0.504 de Windows no servía); el relay NAT de WSL es inestable y `localhost` resuelve a IPv6 en Windows |
 
 ---
 
 ## 4. Pendientes (backlog)
 
 ### Inmediato
+- [x] Poblar `MAIL_USER` / `MAIL_PASS` reales en `.env` (App Password de Gmail con 2FA) — **hecho y verificado** con envío real
 - [ ] Configurar branch protection en GitHub (main y stage requieren PR + CI verde)
 - [x] Agregar tests unitarios del módulo auth (19 suites / 64 tests en verde)
 - [x] Access + refresh token con rotación y revocación (en `feat/auth-refresh-token`, pendiente PR a develop)
@@ -137,6 +165,7 @@ Es un sistema semiprofesional con:
 - [ ] Logger estructurado (Winston o Pino)
 
 ### Medio plazo
+- [ ] Enganchar el correo de recibo de compra (`purchase-receipt.hbs` ya existe) cuando se implemente el flujo de facturación/checkout
 - [ ] MongoDB (tercera BD)
 - [ ] Definir uso de GraphQL (infra conservada dormida: `graphql.module.ts` + deps; hoy no importado porque sin resolvers no arranca. Reactivar: importar `GraphqlModule` + crear resolvers)
 - [ ] WebSockets (Socket.IO vs WS nativo - pendiente)
@@ -144,7 +173,7 @@ Es un sistema semiprofesional con:
 
 ### Pendientes administrativos
 - [ ] Pasar a devs: URL real de Railway PostgreSQL (o crearles usuario read-only)
-- [ ] Pasar a devs: instrucción `docker compose up -d redis` para Redis local
+- [ ] Pasar a devs: instrucción de Redis local (WSL: `service redis-server start` + abrir WSL para que la VM no se apague)
 - [ ] Resetear `stage` a `main` (stage está atrás de main, rompe Gitflow)
 - [ ] Verificar con devs: integridad de .env y onboarding (CONTRIBUTING.yml)
 
@@ -153,7 +182,8 @@ Es un sistema semiprofesional con:
 - [ ] Historial de develop incluye Revert + re-merge de docker-setup (confuso pero funcional)
 - [ ] Schema introspeccionado tiene CHECK constraints que Prisma no soporta nativo (estados como varchar+CHECK) - decisión pendiente: migrar a enums o dejar
 - [ ] `test/app.e2e-spec.ts` scaffold falla (espera "Hello World!" pero AppController devuelve JSON)
-- [x] Tests unitarios en verde (19 suites / 64 tests); faltaban specs y ya existen
+- [x] Tests unitarios en verde (23 suites / 85 tests) tras notificaciones por correo
+- [ ] Cuidado con `prisma db pull` a ciegas: la BD Railway comparte esquema con otras apps (142 tablas); el schema del proyecto se mantiene curado en 21 modelos — al sincronizar, revisar el diff y descartar modelos ajenos
 
 ---
 
@@ -169,8 +199,10 @@ git log --oneline -10
 # Verificar que build pasa
 pnpm run lint && pnpm run build && pnpm test
 
-# Levantar Redis local
-docker compose up -d redis
+# Levantar Redis local (nativo en WSL)
+# Redis arranca solo al abrir WSL (servicio systemd). Si hace falta:
+wsl -d Ubuntu -- sudo service redis-server start
+# OJO: "wsl --shutdown" apaga la VM y mata Redis (volver a abrir WSL)
 
 # Levantar backend en dev
 pnpm run start:dev
@@ -183,6 +215,7 @@ curl http://localhost:3000/health/redis
 curl -X POST http://localhost:3000/auth/tokens -H "Content-Type: application/json" -d '{"correo":"TU_CORREO","password":"TU_PASS"}'
 curl -X POST http://localhost:3000/auth/refresh -H "Content-Type: application/json" -d '{"refresh_token":"TU_REFRESH"}'
 curl -X POST http://localhost:3000/auth/logout -H "Content-Type: application/json" -d '{"refresh_token":"TU_REFRESH"}'
+curl -X POST http://localhost:3000/auth/verify-email -H "Content-Type: application/json" -d '{"correo":"TU_CORREO","codigo":"123456"}'
 
 # Prisma
 pnpm exec prisma validate
@@ -198,7 +231,7 @@ pnpm run prisma:pull
 1. Leer este archivo `CONTEXT.md`
 2. Verificar estado git: `git status && git log --oneline -3 && git branch --show-current`
 3. Verificar que build pasa: `pnpm run lint && pnpm run build && pnpm test`
-4. Verificar que Redis está corriendo: `docker compose up -d redis`
+4. Verificar que Redis está corriendo: abrir WSL (`wsl -d Ubuntu`); comprobar `redis-cli ping` → PONG. Si hace falta: `service redis-server start`
 5. Levantar backend: `pnpm run start:dev`
 6. Verificar endpoints: `curl http://localhost:3000/health` y `curl http://localhost:3000/docs`
 7. Revisar pendientes en la sección 4 de este archivo
