@@ -88,6 +88,7 @@ Es un sistema semiprofesional con:
   - `src/restaurant` → `RestaurantModule`: menú, mesas disponibles, reservaciones
   - `src/events` → `EventsModule`: salones, tipos de evento, reservas + `prisma/seed-negocio.ts`
   - `app.module.ts` registra los 4 módulos de negocio + Auth
+- **Hotel unificado en REST**: `src/modules/hotel` (piloto GraphQL de tipos de habitación) fue eliminado para no duplicar `src/hotel`. La **infra GraphQL se conserva dormida**: `src/infrastructure/graphql/graphql.module.ts` + deps siguen en el repo pero `GraphqlModule` **no se importa** en `app.module.ts` (un módulo code-first sin resolvers rompe el boot con `Query root type must be provided`). Para reactivar: importar `GraphqlModule` y crear resolvers. La API activa es 100% REST.
 - Rate limiting global con Redis storage (`@nestjs/throttler`, `RateLimitModule`) en develop
 - Fix CI: `node-version: 20.x` (cumple engines de `@angular-devkit` >=20.11.1)
 - Refactor `ChangePasswordUseCase` movido al `AuthRepository` (sin PrismaService directo) ya en develop
@@ -137,7 +138,7 @@ Es un sistema semiprofesional con:
 
 ### Medio plazo
 - [ ] MongoDB (tercera BD)
-- [ ] GraphQL (code-first vs schema-first pendiente)
+- [ ] Definir uso de GraphQL (infra conservada dormida: `graphql.module.ts` + deps; hoy no importado porque sin resolvers no arranca. Reactivar: importar `GraphqlModule` + crear resolvers)
 - [ ] WebSockets (Socket.IO vs WS nativo - pendiente)
 - [ ] Documentación API con Swagger/OpenAPI (parcialmente hecho)
 
