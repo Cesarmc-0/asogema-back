@@ -7,6 +7,7 @@ import { RestaurantModule } from './restaurant/restaurant.module';
 import { AdminModule } from './admin/admin.module';
 import { PostgresModule } from './infrastructure/persistence/postgres/postgres.module';
 import { RedisModule } from './infrastructure/persistence/redis/redis.module';
+import { MailModule } from './infrastructure/mail/mail.module';
 import { HealthController } from './presentation/controllers/health.controller';
 import { BullModule } from '@nestjs/bullmq';
 import { RateLimitModule } from './infrastructure/persistence/redis/rate-limit.module';
@@ -24,6 +25,7 @@ import { HotelModule } from './hotel/hotel.module';
     }),
     PostgresModule,
     RedisModule,
+    MailModule,
     RateLimitModule,
     AuthModule,
     EventsModule,

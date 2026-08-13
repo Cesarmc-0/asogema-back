@@ -298,6 +298,7 @@ model usuarios {
   fecha_nacimiento     DateTime?              @db.Date
   direccion            String?                @db.VarChar(255)
   estado               Boolean                @default(true)
+  correo_verificado    Boolean                @default(false)
   created_at           DateTime               @default(now()) @db.Timestamp(6)
   updated_at           DateTime               @default(now()) @db.Timestamp(6)
   facturas             facturas[]

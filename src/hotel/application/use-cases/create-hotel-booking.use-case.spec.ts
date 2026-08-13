@@ -8,11 +8,33 @@ const mockHotelRepository = {
   createBooking: jest.fn(),
 } as unknown as HotelRoomRepository;
 
+const mockPrisma = {
+  usuarios: {
+    findUnique: jest.fn(),
+  },
+} as any;
+
+const mockEmailSender = {
+  sendWelcomeVerification: jest.fn(),
+  sendBookingConfirmation: jest.fn(),
+  sendPurchaseReceipt: jest.fn(),
+} as any;
+
 describe('CreateHotelBookingUseCase', () => {
   let useCase: CreateHotelBookingUseCase;
 
   beforeEach(() => {
-    useCase = new CreateHotelBookingUseCase(mockHotelRepository);
+    useCase = new CreateHotelBookingUseCase(
+      mockHotelRepository,
+      mockPrisma,
+      mockEmailSender,
+    );
+    mockPrisma.usuarios.findUnique.mockResolvedValue({
+      id: 1n,
+      nombre: 'Juan',
+      apellido: 'Pérez',
+      correo: 'juan@test.com',
+    });
   });
 
   afterEach(() => {
@@ -126,5 +148,33 @@ describe('CreateHotelBookingUseCase', () => {
 
     const callArgs = mockHotelRepository.createBooking.mock.calls[0][0];
     expect(callArgs.total).toBe(500);
+  });
+
+  it('debe notificar por correo la reserva creada', async () => {
+    const mockHabitacion = {
+      id: 1n,
+      numero: '101',
+      estado: true,
+      tipos_habitacion: { nombre: 'Standard', precio_noche: 100 as any },
+    };
+    mockHotelRepository.findById.mockResolvedValue(mockHabitacion);
+    mockHotelRepository.isRoomAvailableForDates.mockResolvedValue(true);
+    mockHotelRepository.createBooking.mockResolvedValue({ id: 55n });
+
+    await useCase.execute(1n, {
+      habitacion_id: 1n,
+      fecha_entrada: new Date('2026-08-01'),
+      fecha_salida: new Date('2026-08-05'),
+      cantidad_huespedes: 2,
+    });
+
+    expect(mockEmailSender.sendBookingConfirmation).toHaveBeenCalledWith(
+      'hotel-booking',
+      expect.objectContaining({
+        correo: 'juan@test.com',
+        reserva_id: 55n,
+        personas: 2,
+      }),
+    );
   });
 });

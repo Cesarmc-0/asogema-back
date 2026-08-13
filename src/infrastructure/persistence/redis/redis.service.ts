@@ -29,7 +29,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     });
 
     // Forced ping para confirmar conexion al iniciar
-    await this.client.ping();
+    try {
+      await this.client.ping();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Redis no disponible al iniciar (${message}); se reintentará automáticamente`,
+      );
+    }
   }
 
   async onModuleDestroy(): Promise<void> {

@@ -59,7 +59,6 @@ export class HotelController {
     @Body() dto: CreateBookingDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return this.createBookingUseCase.execute(user.id, {
       habitacion_id: BigInt(dto.habitacion_id),
       fecha_entrada: new Date(dto.fecha_entrada),
