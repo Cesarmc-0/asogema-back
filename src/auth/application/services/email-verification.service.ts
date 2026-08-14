@@ -5,8 +5,10 @@ import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.se
 
 const CODE_TTL_SECONDS = 600;
 const MAX_ATTEMPTS = 5;
+const RESEND_COOLDOWN_SECONDS = 60;
 const CODE_KEY_PREFIX = 'auth:verify:';
 const ATTEMPTS_KEY_PREFIX = 'auth:verify:attempts:';
+const RESEND_KEY_PREFIX = 'auth:verify:resend:';
 
 @Injectable()
 export class EmailVerificationService {
@@ -76,6 +78,24 @@ export class EmailVerificationService {
     await this.redis.del([this.codeKey(correo), this.attemptsKey(correo)]);
   }
 
+  async assertResendAllowed(correo: string): Promise<void> {
+    const client = this.redis.getClient();
+    const ttl = await client.ttl(this.resendKey(correo));
+    if (ttl > 0) {
+      throw new Error(`Espera ${ttl} segundos antes de solicitar otro código`);
+    }
+  }
+
+  async markResendSent(correo: string): Promise<void> {
+    const client = this.redis.getClient();
+    await client.set(
+      this.resendKey(correo),
+      '1',
+      'EX',
+      RESEND_COOLDOWN_SECONDS,
+    );
+  }
+
   private hash(code: string): string {
     return createHash('sha256').update(code).digest('hex');
   }
@@ -86,5 +106,9 @@ export class EmailVerificationService {
 
   private attemptsKey(correo: string): string {
     return `${ATTEMPTS_KEY_PREFIX}${correo}`;
+  }
+
+  private resendKey(correo: string): string {
+    return `${RESEND_KEY_PREFIX}${correo}`;
   }
 }

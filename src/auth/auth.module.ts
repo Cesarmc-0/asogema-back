@@ -11,6 +11,7 @@ import { ChangePasswordUseCase } from './application/use-cases/change-password.u
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case';
 import { LogoutUseCase } from './application/use-cases/logout.use-case';
 import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-case';
+import { ResendCodeUseCase } from './application/use-cases/resend-code.use-case';
 import { CreateAdminService } from './application/use-cases/create-admin.use-case';
 import { TokenService } from './application/services/token.service';
 import { EmailVerificationService } from './application/services/email-verification.service';
@@ -41,6 +42,7 @@ import { RolesGuard } from './infrastructure/guards/roles.guard';
     RefreshTokenUseCase,
     LogoutUseCase,
     VerifyEmailUseCase,
+    ResendCodeUseCase,
     CreateAdminService,
     TokenService,
     EmailVerificationService,
