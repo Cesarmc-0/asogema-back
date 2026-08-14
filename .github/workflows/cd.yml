@@ -28,8 +28,8 @@ jobs:
             -H "Content-Type: application/json" \
             -H "X-Hub-Signature-256: $SIGNATURE" \
             -d "$BODY")
-          echo "Respuesta del webhook: $STATUS"
+          echo "Webhook response: $STATUS"
           if [ "$STATUS" != "200" ]; then
-            echo "Fallo el deploy. Codigo: $STATUS"
+            echo "Deploy failed. Code: $STATUS"
             exit 1
           fi
