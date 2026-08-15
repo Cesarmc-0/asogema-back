@@ -2,12 +2,21 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
+import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
+import { EmailSender } from 'src/infrastructure/mail/domain/email-sender.interface';
 import { HotelRoomRepository } from '../../../hotel/domain/repositories/hotel-room.repository.interface';
 
 @Injectable()
 export class CreateHotelBookingUseCase {
-  constructor(private readonly hotelRepository: HotelRoomRepository) {}
+  private readonly logger = new Logger(CreateHotelBookingUseCase.name);
+
+  constructor(
+    private readonly hotelRepository: HotelRoomRepository,
+    private readonly prisma: PrismaService,
+    private readonly emailSender: EmailSender,
+  ) {}
 
   async execute(
     usuario_id: bigint,
@@ -48,8 +57,7 @@ export class CreateHotelBookingUseCase {
         dto.fecha_salida,
       );
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return this.hotelRepository.createBooking({
+    const reserva = await this.hotelRepository.createBooking({
       usuario_id,
       habitacion_id: dto.habitacion_id,
       fecha_entrada: dto.fecha_entrada,
@@ -58,6 +66,66 @@ export class CreateHotelBookingUseCase {
       total,
       observaciones: dto.observaciones,
     });
+
+    await this.notifyBookingConfirmation(
+      usuario_id,
+      reserva,
+      habitacion,
+      dto.fecha_entrada,
+      dto.fecha_salida,
+      dto.cantidad_huespedes,
+      total,
+    );
+
+    return reserva;
+  }
+
+  private async notifyBookingConfirmation(
+    usuario_id: bigint,
+    reserva: { id: bigint },
+    habitacion: {
+      numero: string;
+      tipos_habitacion: { nombre: string; capacidad: number };
+    },
+    fecha_entrada: Date,
+    fecha_salida: Date,
+    cantidad_huespedes: number,
+    total: number,
+  ): Promise<void> {
+    try {
+      const usuario = await this.prisma.usuarios.findUnique({
+        where: { id: usuario_id },
+      });
+      if (!usuario) {
+        this.logger.warn(
+          `Usuario ${usuario_id} no encontrado al notificar reserva de hotel`,
+        );
+        return;
+      }
+
+      await this.emailSender.sendBookingConfirmation('hotel-booking', {
+        nombre: `${usuario.nombre} ${usuario.apellido}`.trim(),
+        correo: usuario.correo,
+        reserva_id: reserva.id,
+        servicio: `${habitacion.numero} - ${habitacion.tipos_habitacion.nombre}`,
+        detalle: habitacion.tipos_habitacion.nombre,
+        fecha: `${this.formatDate(fecha_entrada)} al ${this.formatDate(
+          fecha_salida,
+        )}`,
+        personas: cantidad_huespedes,
+        total: total.toFixed(2),
+      });
+    } catch (error) {
+      this.logger.error(
+        `No se pudo notificar la reserva de hotel ${reserva.id}: ${
+          error instanceof Error ? error.message : 'error desconocido'
+        }`,
+      );
+    }
+  }
+
+  private formatDate(date: Date): string {
+    return date.toLocaleDateString('es-CO');
   }
 
   private calculateTotal(

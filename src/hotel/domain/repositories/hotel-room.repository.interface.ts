@@ -33,7 +33,9 @@ export abstract class HotelRoomRepository {
   abstract findBookingsByUser(
     usuario_id: bigint,
   ): Promise<ReservaHabitacionConHabitacion[]>;
-  abstract createBooking(data: CreateBookingInput): Promise<any>;
+  abstract createBooking(
+    data: CreateBookingInput,
+  ): Promise<ReservaHabitacionConHabitacion>;
   abstract findBookingByIdAndUser(
     id: bigint,
     usuario_id: bigint,
