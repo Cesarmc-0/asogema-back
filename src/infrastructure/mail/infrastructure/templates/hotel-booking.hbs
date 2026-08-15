@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+  <body style="font-family: Arial, sans-serif; color: #222; line-height: 1.6">
+    <h2 style="color: #1a5fb4">Reserva de habitación confirmada</h2>
+    <p>Hola {{nombre}}, tu reserva fue registrada con éxito.</p>
+    <table style="border-collapse: collapse; margin-top: 12px">
+      <tr>
+        <td style="padding: 6px 12px; font-weight: bold">N° reserva:</td>
+        <td style="padding: 6px 12px">{{reserva_id}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 12px; font-weight: bold">Habitación:</td>
+        <td style="padding: 6px 12px">{{servicio}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 12px; font-weight: bold">Detalle:</td>
+        <td style="padding: 6px 12px">{{detalle}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 12px; font-weight: bold">Fechas:</td>
+        <td style="padding: 6px 12px">{{fecha}}</td>
+      </tr>
+      {{#if personas}}
+      <tr>
+        <td style="padding: 6px 12px; font-weight: bold">Huéspedes:</td>
+        <td style="padding: 6px 12px">{{personas}}</td>
+      </tr>
+      {{/if}}
+      {{#if total}}
+      <tr>
+        <td style="padding: 6px 12px; font-weight: bold">Total:</td>
+        <td style="padding: 6px 12px">$ {{total}}</td>
+      </tr>
+      {{/if}}
+    </table>
+    <p style="color: #666; font-size: 14px">
+      Te esperamos. Si tienes dudas, contáctanos.
+    </p>
+  </body>
+</html>

@@ -12,13 +12,39 @@ const mockPrisma = {
   reservas_evento: {
     count: jest.fn(),
   },
+  usuarios: {
+    findUnique: jest.fn(),
+  },
+  tipos_evento: {
+    findUnique: jest.fn(),
+  },
+} as any;
+
+const mockEmailSender = {
+  sendWelcomeVerification: jest.fn(),
+  sendBookingConfirmation: jest.fn(),
+  sendPurchaseReceipt: jest.fn(),
 } as any;
 
 describe('CreateEventBookingUseCase', () => {
   let useCase: CreateEventBookingUseCase;
 
   beforeEach(() => {
-    useCase = new CreateEventBookingUseCase(mockEventRepository, mockPrisma);
+    useCase = new CreateEventBookingUseCase(
+      mockEventRepository,
+      mockPrisma,
+      mockEmailSender,
+    );
+    mockPrisma.usuarios.findUnique.mockResolvedValue({
+      id: 1n,
+      nombre: 'Juan',
+      apellido: 'Pérez',
+      correo: 'juan@test.com',
+    });
+    mockPrisma.tipos_evento.findUnique.mockResolvedValue({
+      id: 1n,
+      nombre: 'Boda',
+    });
   });
 
   afterEach(() => {
@@ -174,5 +200,35 @@ describe('CreateEventBookingUseCase', () => {
 
     const lastCall = mockEventRepository.createEventBooking.mock.calls.at(-1);
     expect(lastCall?.[0].anticipo).toBe(500000);
+  });
+
+  it('debe notificar por correo la reserva de salón', async () => {
+    mockPrisma.salones.findUnique.mockResolvedValue({
+      id: 1n,
+      nombre: 'Salón A',
+      capacidad: 100,
+      estado: 'DISPONIBLE',
+      precio_base: 1000000,
+    });
+    mockPrisma.reservas_evento.count.mockResolvedValue(0);
+    mockEventRepository.createEventBooking.mockResolvedValue({ id: 77n });
+
+    await useCase.execute(1n, {
+      salon_id: 1n,
+      tipo_evento_id: 1n,
+      fecha: new Date('2026-08-15'),
+      hora_inicio: new Date('2026-08-15T09:00:00'),
+      hora_fin: new Date('2026-08-15T17:00:00'),
+      cantidad_personas: 80,
+    });
+
+    expect(mockEmailSender.sendBookingConfirmation).toHaveBeenCalledWith(
+      'event-booking',
+      expect.objectContaining({
+        correo: 'juan@test.com',
+        reserva_id: 77n,
+        personas: 80,
+      }),
+    );
   });
 });
