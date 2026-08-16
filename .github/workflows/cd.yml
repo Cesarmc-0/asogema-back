@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Trigger webhook
         env:
-          WEBHOOK_URL: https://deploy.clubasogema.com/webhook
+          WEBHOOK_URL: https://deploy.clubasogema.com/webhook/back
           WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
         run: |
           BODY='{"ref":"refs/heads/main"}'
