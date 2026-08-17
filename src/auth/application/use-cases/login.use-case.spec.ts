@@ -3,7 +3,7 @@ import { LoginUseCase } from './login.use-case';
 import { AuthRepository } from '../../../auth/domain/repositories/auth.repository.interface';
 import { RefreshTokenRepository } from '../../../auth/domain/repositories/refresh-token.repository.interface';
 import { TokenService } from '../services/token.service';
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { LoginDto } from '../../../auth/presentation/dto/login.dto';
 import * as bcrypt from 'bcrypt';
 
@@ -14,6 +14,7 @@ const mockUser = {
   password_hash: 'hashed_password',
   rol_id: 2n,
   estado: true,
+  correo_verificado: true,
   nombre: 'Test',
   apellido: 'User',
   roles: { nombre: 'RolTest' },
@@ -47,6 +48,7 @@ describe('LoginUseCase', () => {
     );
 
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    (mockRefreshTokenRepository.save as jest.Mock).mockClear();
   });
   //--------------caso exitoso-----------------
   it('login exitoso: devuelve access token, refresh token y usuario', async () => {
@@ -122,5 +124,22 @@ describe('LoginUseCase', () => {
         estado: false,
       } as MockUser);
     await expect(useCase.execute(dto)).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('user con credenciales correctas pero correo sin verificar: lanza ForbiddenException y no emite tokens', async () => {
+    const dto: LoginDto = {
+      correo: 'sinverificar@test.com',
+      password: '123456',
+    };
+
+    mockAuthRepository.findByEmail = () =>
+      Promise.resolve({
+        ...mockUser,
+        correo: 'sinverificar@test.com',
+        correo_verificado: false,
+      } as MockUser);
+
+    await expect(useCase.execute(dto)).rejects.toThrow(ForbiddenException);
+    expect(mockRefreshTokenRepository.save).not.toHaveBeenCalled();
   });
 });

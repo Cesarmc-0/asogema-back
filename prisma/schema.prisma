@@ -1,6 +1,6 @@
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native","debian-openssl-3.0.x"]
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -25,7 +25,7 @@ model detalle_factura {
   descripcion     String   @db.VarChar(200)
   cantidad        Int
   precio_unitario Decimal  @db.Decimal(12, 2)
-  subtotal        Decimal? @default(dbgenerated("((cantidad)::numeric * precio_unitario)")) @db.Decimal(12, 2)
+  subtotal        Decimal? @db.Decimal(12, 2)
   facturas        facturas @relation(fields: [factura_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_detalle_factura")
 }
 
@@ -37,7 +37,7 @@ model detalle_pedido {
   cantidad            Int
   precio_unitario     Decimal             @db.Decimal(10, 2)
   created_at          DateTime            @default(now()) @db.Timestamp(6)
-  subtotal            Decimal?            @default(dbgenerated("((cantidad)::numeric * precio_unitario)")) @db.Decimal(10, 2)
+  subtotal            Decimal?            @db.Decimal(10, 2)
   pedidos_restaurante pedidos_restaurante @relation(fields: [pedido_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_detalle_pedido")
   productos_menu      productos_menu      @relation(fields: [producto_id], references: [id], onUpdate: NoAction, map: "fk_detalle_producto")
 }
@@ -49,7 +49,7 @@ model detalle_servicios_evento {
   servicio_id       BigInt
   cantidad          Int
   precio_unitario   Decimal          @db.Decimal(12, 2)
-  subtotal          Decimal?         @default(dbgenerated("((cantidad)::numeric * precio_unitario)")) @db.Decimal(12, 2)
+  subtotal          Decimal?         @db.Decimal(12, 2)
   reservas_evento   reservas_evento  @relation(fields: [reserva_evento_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_detalle_reserva_evento")
   servicios_evento  servicios_evento @relation(fields: [servicio_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_detalle_servicio_evento")
 }
@@ -67,6 +67,10 @@ model facturas {
   observaciones   String?
   created_at      DateTime?         @default(now()) @db.Timestamp(6)
   updated_at      DateTime?         @default(now()) @db.Timestamp(6)
+  cufe            String?           @db.VarChar(100)
+  numero_factura  String?           @db.VarChar(50)
+  factus_id       String?           @db.VarChar(100)
+  qr_url          String?
   detalle_factura detalle_factura[]
   usuarios        usuarios          @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_factura_usuario")
   pagos           pagos[]
@@ -114,14 +118,15 @@ model mesas {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model pagos {
-  id          BigInt    @id @default(autoincrement())
-  factura_id  BigInt
-  fecha_pago  DateTime? @default(now()) @db.Timestamp(6)
-  metodo_pago String    @db.VarChar(30)
-  valor       Decimal   @db.Decimal(12, 2)
-  referencia  String?   @db.VarChar(100)
-  estado      String?   @default("CONFIRMADO") @db.VarChar(20)
-  facturas    facturas  @relation(fields: [factura_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_pago_factura")
+  id              BigInt    @id @default(autoincrement())
+  factura_id      BigInt
+  fecha_pago      DateTime? @default(now()) @db.Timestamp(6)
+  metodo_pago     String    @db.VarChar(30)
+  valor           Decimal   @db.Decimal(12, 2)
+  referencia      String?   @db.VarChar(100)
+  estado          String?   @default("CONFIRMADO") @db.VarChar(20)
+  payment_link_id String?
+  facturas        facturas  @relation(fields: [factura_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_pago_factura")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -292,7 +297,7 @@ model usuarios {
   nombre               String                 @db.VarChar(100)
   apellido             String                 @db.VarChar(100)
   numero_documento     String                 @unique @db.VarChar(20)
-  telefono             String                @db.VarChar(20)
+  telefono             String                 @db.VarChar(20)
   correo               String                 @unique @db.VarChar(150)
   password_hash        String
   fecha_nacimiento     DateTime?              @db.Date
