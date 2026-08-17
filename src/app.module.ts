@@ -12,6 +12,7 @@ import { HealthController } from './presentation/controllers/health.controller';
 import { BullModule } from '@nestjs/bullmq';
 import { RateLimitModule } from './infrastructure/persistence/redis/rate-limit.module';
 import { HotelModule } from './hotel/hotel.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { HotelModule } from './hotel/hotel.module';
     RestaurantModule,
     HotelModule,
     AdminModule,
+    PaymentsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [],

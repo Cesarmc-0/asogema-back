@@ -4,8 +4,10 @@ import { CreateEventBookingUseCase } from 'src/events/application/use-cases/crea
 import { EventRepository } from 'src/events/domain/repositories/event-repository.interface';
 import { EventsRepositoryImpl } from 'src/events/infrastructure/persistence/events.repository';
 import { EventsController } from 'src/events/presentation/controllers/events.controller';
+import { PaymentsModule } from 'src/payments/payments.module';
 
 @Module({
+  imports: [PaymentsModule],
   controllers: [EventsController],
   providers: [
     GetEventsUseCase,

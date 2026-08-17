@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { AuthRepository } from '../../domain/repositories/auth.repository.interface';
 import { RefreshTokenRepository } from '../../domain/repositories/refresh-token.repository.interface';
@@ -20,6 +24,12 @@ export class LoginUseCase {
 
     const valid = await bcrypt.compare(dto.password, user.password_hash);
     if (!valid) throw new UnauthorizedException('credenciales invalidas');
+
+    if (!user.correo_verificado) {
+      throw new ForbiddenException(
+        'Correo no verificado. Revisa tu bandeja de entrada para ingresar el código.',
+      );
+    }
 
     const access_token = this.tokenService.signAccessToken(user);
     const refresh_token = this.tokenService.generateRefreshToken();
