@@ -1,7 +1,23 @@
-import { Controller, Get, Param, Query, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Query,
+  Body,
+  ParseIntPipe,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 import { Roles } from 'src/auth/presentation/dto/decorators/roles.decorator';
+import { CurrentUser } from 'src/auth/presentation/dto/decorators/current-user.decorator';
+import type { AuthenticatedUser } from 'src/auth/domain/interfaces/authenticated-user.interface';
+import { CreateTaskDto } from '../dto/create-task.dto';
+import { UpdateTaskDto } from '../dto/update-task.dto';
 
 @ApiTags('admin')
 @Controller('admin')
@@ -68,8 +84,9 @@ export class AdminController {
 
   @Get('reservations/today')
   @ApiOperation({ summary: 'Reservas del día (hotel, restaurante, eventos)' })
-  async getTodayReservations() {
-    const hoy = new Date();
+  @ApiQuery({ name: 'fecha', required: false, description: 'Fecha específica YYYY-MM-DD (default: hoy)' })
+  async getTodayReservations(@Query('fecha') fecha?: string) {
+    const hoy = fecha ? new Date(fecha + 'T12:00:00') : new Date();
 
     const [hotel, restaurante, eventos] = await Promise.all([
       this.prisma.reservas_hotel.findMany({
@@ -443,10 +460,321 @@ export class AdminController {
     };
   }
 
+  // ─── Empleados ────────────────────────────────────────────────
+
+  @Get('employees')
+  @ApiOperation({ summary: 'Lista de usuarios con rol Empleado' })
+  async getEmployees() {
+    const role = await this.prisma.roles.findFirst({
+      where: { nombre: 'Empleado' },
+    });
+    if (!role) return [];
+
+    const usuarios = await this.prisma.usuarios.findMany({
+      where: { rol_id: role.id, estado: true },
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        correo: true,
+        telefono: true,
+      },
+      orderBy: { nombre: 'asc' },
+    });
+
+    return usuarios.map((u) => ({
+      id: Number(u.id),
+      nombre: `${u.nombre} ${u.apellido}`,
+      correo: u.correo,
+      telefono: u.telefono,
+    }));
+  }
+
+  // ─── Tareas ──────────────────────────────────────────────────
+
+  @Get('tasks')
+  @ApiOperation({
+    summary: 'Listar tareas (filtro por fecha, empleado, estado)',
+  })
+  @ApiQuery({ name: 'fecha', required: false, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'empleado_id', required: false })
+  @ApiQuery({ name: 'estado', required: false })
+  @ApiQuery({ name: 'mes', required: false, description: 'YYYY-MM' })
+  async getTasks(
+    @Query('fecha') fecha?: string,
+    @Query('empleado_id') empleadoId?: string,
+    @Query('estado') estado?: string,
+    @Query('mes') mes?: string,
+  ) {
+    const where: Record<string, unknown> = {};
+
+    if (fecha) {
+      where.fecha = new Date(fecha);
+    } else if (mes) {
+      const [year, month] = mes.split('-').map(Number);
+      const start = new Date(year, month - 1, 1);
+      const end = new Date(year, month, 0);
+      where.fecha = { gte: start, lte: end };
+    }
+
+    if (empleadoId) {
+      where.asignado_a = BigInt(empleadoId);
+    }
+
+    if (estado) {
+      where.estado = estado;
+    }
+
+    const tareas = await this.prisma.tareas.findMany({
+      where,
+      include: {
+        usuarios_tareas_asignado_aTousuarios: {
+          select: { id: true, nombre: true, apellido: true, correo: true },
+        },
+        usuarios_tareas_asignado_porTousuarios: {
+          select: { id: true, nombre: true, apellido: true },
+        },
+      },
+      orderBy: [{ fecha: 'asc' }, { prioridad: 'desc' }],
+    });
+
+    return tareas.map((t) => ({
+      id: Number(t.id),
+      titulo: t.titulo,
+      descripcion: t.descripcion,
+      fecha: t.fecha.toISOString().slice(0, 10),
+      hora_inicio: t.hora_inicio
+        ? t.hora_inicio.toISOString().slice(11, 16)
+        : null,
+      hora_fin: t.hora_fin ? t.hora_fin.toISOString().slice(11, 16) : null,
+      estado: t.estado,
+      prioridad: t.prioridad,
+      asignado_a: {
+        id: Number(t.usuarios_tareas_asignado_aTousuarios.id),
+        nombre: `${t.usuarios_tareas_asignado_aTousuarios.nombre} ${t.usuarios_tareas_asignado_aTousuarios.apellido}`,
+        correo: t.usuarios_tareas_asignado_aTousuarios.correo,
+      },
+      asignado_por: {
+        id: Number(t.usuarios_tareas_asignado_porTousuarios.id),
+        nombre: `${t.usuarios_tareas_asignado_porTousuarios.nombre} ${t.usuarios_tareas_asignado_porTousuarios.apellido}`,
+      },
+      created_at: t.created_at,
+      updated_at: t.updated_at,
+    }));
+  }
+
+  @Get('tasks/:id')
+  @ApiOperation({ summary: 'Detalle de una tarea' })
+  async getTask(@Param('id', ParseIntPipe) id: number) {
+    const tarea = await this.prisma.tareas.findUnique({
+      where: { id },
+      include: {
+        usuarios_tareas_asignado_aTousuarios: {
+          select: { id: true, nombre: true, apellido: true, correo: true },
+        },
+        usuarios_tareas_asignado_porTousuarios: {
+          select: { id: true, nombre: true, apellido: true },
+        },
+      },
+    });
+
+    if (!tarea) {
+      throw new NotFoundException('Tarea no encontrada');
+    }
+
+    return {
+      id: Number(tarea.id),
+      titulo: tarea.titulo,
+      descripcion: tarea.descripcion,
+      fecha: tarea.fecha.toISOString().slice(0, 10),
+      hora_inicio: tarea.hora_inicio
+        ? tarea.hora_inicio.toISOString().slice(11, 16)
+        : null,
+      hora_fin: tarea.hora_fin
+        ? tarea.hora_fin.toISOString().slice(11, 16)
+        : null,
+      estado: tarea.estado,
+      prioridad: tarea.prioridad,
+      asignado_a: {
+        id: Number(tarea.usuarios_tareas_asignado_aTousuarios.id),
+        nombre: `${tarea.usuarios_tareas_asignado_aTousuarios.nombre} ${tarea.usuarios_tareas_asignado_aTousuarios.apellido}`,
+        correo: tarea.usuarios_tareas_asignado_aTousuarios.correo,
+      },
+      asignado_por: {
+        id: Number(tarea.usuarios_tareas_asignado_porTousuarios.id),
+        nombre: `${tarea.usuarios_tareas_asignado_porTousuarios.nombre} ${tarea.usuarios_tareas_asignado_porTousuarios.apellido}`,
+      },
+      created_at: tarea.created_at,
+      updated_at: tarea.updated_at,
+    };
+  }
+
+  @Post('tasks')
+  @ApiOperation({ summary: 'Crear una tarea y asignarla a un empleado' })
+  async createTask(
+    @Body() dto: CreateTaskDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const empleado = await this.prisma.usuarios.findUnique({
+      where: { id: BigInt(dto.asignado_a) },
+      include: { roles: true },
+    });
+
+    if (!empleado || !empleado.estado) {
+      throw new BadRequestException('El empleado seleccionado no es válido');
+    }
+
+    if (empleado.roles.nombre !== 'Empleado') {
+      throw new BadRequestException(
+        'El usuario seleccionado no tiene rol de Empleado',
+      );
+    }
+
+    const tarea = await this.prisma.tareas.create({
+      data: {
+        titulo: dto.titulo,
+        descripcion: dto.descripcion ?? null,
+        fecha: new Date(dto.fecha),
+        hora_inicio: dto.hora_inicio ? new Date(`1970-01-01T${dto.hora_inicio}`) : null,
+        hora_fin: dto.hora_fin ? new Date(`1970-01-01T${dto.hora_fin}`) : null,
+        estado: dto.estado ?? 'PENDIENTE',
+        prioridad: dto.prioridad ?? 'MEDIA',
+        asignado_por: user.id,
+        asignado_a: BigInt(dto.asignado_a),
+      },
+      include: {
+        usuarios_tareas_asignado_aTousuarios: {
+          select: { id: true, nombre: true, apellido: true, correo: true },
+        },
+        usuarios_tareas_asignado_porTousuarios: {
+          select: { id: true, nombre: true, apellido: true },
+        },
+      },
+    });
+
+    return {
+      id: Number(tarea.id),
+      titulo: tarea.titulo,
+      descripcion: tarea.descripcion,
+      fecha: tarea.fecha.toISOString().slice(0, 10),
+      hora_inicio: tarea.hora_inicio
+        ? tarea.hora_inicio.toISOString().slice(11, 16)
+        : null,
+      hora_fin: tarea.hora_fin
+        ? tarea.hora_fin.toISOString().slice(11, 16)
+        : null,
+      estado: tarea.estado,
+      prioridad: tarea.prioridad,
+      asignado_a: {
+        id: Number(tarea.usuarios_tareas_asignado_aTousuarios.id),
+        nombre: `${tarea.usuarios_tareas_asignado_aTousuarios.nombre} ${tarea.usuarios_tareas_asignado_aTousuarios.apellido}`,
+        correo: tarea.usuarios_tareas_asignado_aTousuarios.correo,
+      },
+      asignado_por: {
+        id: Number(tarea.usuarios_tareas_asignado_porTousuarios.id),
+        nombre: `${tarea.usuarios_tareas_asignado_porTousuarios.nombre} ${tarea.usuarios_tareas_asignado_porTousuarios.apellido}`,
+      },
+      created_at: tarea.created_at,
+      updated_at: tarea.updated_at,
+    };
+  }
+
+  @Patch('tasks/:id')
+  @ApiOperation({ summary: 'Actualizar una tarea' })
+  async updateTask(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTaskDto,
+  ) {
+    const existente = await this.prisma.tareas.findUnique({ where: { id } });
+    if (!existente) {
+      throw new NotFoundException('Tarea no encontrada');
+    }
+
+    if (dto.asignado_a) {
+      const empleado = await this.prisma.usuarios.findUnique({
+        where: { id: BigInt(dto.asignado_a) },
+        include: { roles: true },
+      });
+      if (
+        !empleado ||
+        !empleado.estado ||
+        empleado.roles.nombre !== 'Empleado'
+      ) {
+        throw new BadRequestException('El empleado seleccionado no es válido');
+      }
+    }
+
+    const data: Record<string, unknown> = {};
+    if (dto.titulo !== undefined) data.titulo = dto.titulo;
+    if (dto.descripcion !== undefined)
+      data.descripcion = dto.descripcion ?? null;
+    if (dto.fecha !== undefined) data.fecha = new Date(dto.fecha);
+    if (dto.hora_inicio !== undefined)
+      data.hora_inicio = dto.hora_inicio ? new Date(`1970-01-01T${dto.hora_inicio}`) : null;
+    if (dto.hora_fin !== undefined)
+      data.hora_fin = dto.hora_fin ? new Date(`1970-01-01T${dto.hora_fin}`) : null;
+    if (dto.estado !== undefined) data.estado = dto.estado;
+    if (dto.prioridad !== undefined) data.prioridad = dto.prioridad;
+    if (dto.asignado_a !== undefined) data.asignado_a = BigInt(dto.asignado_a);
+
+    data.updated_at = new Date();
+
+    const tarea = await this.prisma.tareas.update({
+      where: { id },
+      data,
+      include: {
+        usuarios_tareas_asignado_aTousuarios: {
+          select: { id: true, nombre: true, apellido: true, correo: true },
+        },
+        usuarios_tareas_asignado_porTousuarios: {
+          select: { id: true, nombre: true, apellido: true },
+        },
+      },
+    });
+
+    return {
+      id: Number(tarea.id),
+      titulo: tarea.titulo,
+      descripcion: tarea.descripcion,
+      fecha: tarea.fecha.toISOString().slice(0, 10),
+      hora_inicio: tarea.hora_inicio
+        ? tarea.hora_inicio.toISOString().slice(11, 16)
+        : null,
+      hora_fin: tarea.hora_fin
+        ? tarea.hora_fin.toISOString().slice(11, 16)
+        : null,
+      estado: tarea.estado,
+      prioridad: tarea.prioridad,
+      asignado_a: {
+        id: Number(tarea.usuarios_tareas_asignado_aTousuarios.id),
+        nombre: `${tarea.usuarios_tareas_asignado_aTousuarios.nombre} ${tarea.usuarios_tareas_asignado_aTousuarios.apellido}`,
+        correo: tarea.usuarios_tareas_asignado_aTousuarios.correo,
+      },
+      asignado_por: {
+        id: Number(tarea.usuarios_tareas_asignado_porTousuarios.id),
+        nombre: `${tarea.usuarios_tareas_asignado_porTousuarios.nombre} ${tarea.usuarios_tareas_asignado_porTousuarios.apellido}`,
+      },
+      created_at: tarea.created_at,
+      updated_at: tarea.updated_at,
+    };
+  }
+
+  @Delete('tasks/:id')
+  @ApiOperation({ summary: 'Eliminar una tarea' })
+  async deleteTask(@Param('id', ParseIntPipe) id: number) {
+    const existente = await this.prisma.tareas.findUnique({ where: { id } });
+    if (!existente) {
+      throw new NotFoundException('Tarea no encontrada');
+    }
+
+    await this.prisma.tareas.delete({ where: { id } });
+    return { message: 'Tarea eliminada correctamente' };
+  }
+
   @Get('calendar/events')
   @ApiOperation({ summary: 'Todos los eventos para el calendario' })
   async getCalendarEvents() {
-    const [eventos, hotel, restaurante] = await Promise.all([
+    const [eventos, hotel, restaurante, tareas] = await Promise.all([
       this.prisma.reservas_evento.findMany({
         where: { estado: { notIn: ['CANCELADA'] } },
         include: {
@@ -461,6 +789,14 @@ export class AdminController {
       this.prisma.reservas_restaurante.findMany({
         where: { estado: { notIn: ['CANCELADA'] } },
         include: { mesas: { select: { numero: true } } },
+      }),
+      this.prisma.tareas.findMany({
+        where: { estado: { notIn: ['CANCELADA'] } },
+        include: {
+          usuarios_tareas_asignado_aTousuarios: {
+            select: { nombre: true, apellido: true },
+          },
+        },
       }),
     ]);
 
@@ -491,6 +827,19 @@ export class AdminController {
         location: `Mesa ${r.mesas.numero}`,
         category: 'reservas',
         color: '#fdcb6e',
+      })),
+      ...tareas.map((t) => ({
+        id: `tarea-${t.id}`,
+        title: `Tarea: ${t.titulo}`,
+        date: t.fecha.toISOString().slice(0, 10),
+        time: t.hora_inicio
+          ? `${t.hora_inicio.toISOString().slice(11, 16)}${t.hora_fin ? ' - ' + t.hora_fin.toISOString().slice(11, 16) : ''}`
+          : 'Sin horario',
+        location: t.usuarios_tareas_asignado_aTousuarios
+          ? `${t.usuarios_tareas_asignado_aTousuarios.nombre} ${t.usuarios_tareas_asignado_aTousuarios.apellido}`
+          : '—',
+        category: 'tareas',
+        color: '#e84393',
       })),
     ];
   }

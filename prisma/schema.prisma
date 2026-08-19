@@ -71,6 +71,8 @@ model facturas {
   numero_factura  String?           @db.VarChar(50)
   factus_id       String?           @db.VarChar(100)
   qr_url          String?
+  reserva_id      BigInt?
+  tipo_reserva    String?           @db.VarChar(20)
   detalle_factura detalle_factura[]
   usuarios        usuarios          @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_factura_usuario")
   pagos           pagos[]
@@ -291,26 +293,45 @@ model tipos_habitacion {
 }
 
 model usuarios {
-  id                   BigInt                 @id @default(autoincrement())
-  rol_id               BigInt
-  tipo_documento_id    BigInt
-  nombre               String                 @db.VarChar(100)
-  apellido             String                 @db.VarChar(100)
-  numero_documento     String                 @unique @db.VarChar(20)
-  telefono             String                 @db.VarChar(20)
-  correo               String                 @unique @db.VarChar(150)
-  password_hash        String
-  fecha_nacimiento     DateTime?              @db.Date
-  direccion            String?                @db.VarChar(255)
-  estado               Boolean                @default(true)
-  correo_verificado    Boolean                @default(false)
-  created_at           DateTime               @default(now()) @db.Timestamp(6)
-  updated_at           DateTime               @default(now()) @db.Timestamp(6)
-  facturas             facturas[]
-  pedidos_restaurante  pedidos_restaurante[]
-  reservas_evento      reservas_evento[]
-  reservas_hotel       reservas_hotel[]
-  reservas_restaurante reservas_restaurante[]
-  roles                roles                  @relation(fields: [rol_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_usuario_rol")
-  tipos_documento      tipos_documento        @relation(fields: [tipo_documento_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_usuario_tipo_documento")
+  id                                   BigInt                 @id @default(autoincrement())
+  rol_id                               BigInt
+  tipo_documento_id                    BigInt
+  nombre                               String                 @db.VarChar(100)
+  apellido                             String                 @db.VarChar(100)
+  numero_documento                     String                 @unique @db.VarChar(20)
+  telefono                             String                 @db.VarChar(20)
+  correo                               String                 @unique @db.VarChar(150)
+  password_hash                        String
+  fecha_nacimiento                     DateTime?              @db.Date
+  direccion                            String?                @db.VarChar(255)
+  estado                               Boolean                @default(true)
+  correo_verificado                    Boolean                @default(false)
+  created_at                           DateTime               @default(now()) @db.Timestamp(6)
+  updated_at                           DateTime               @default(now()) @db.Timestamp(6)
+  facturas                             facturas[]
+  pedidos_restaurante                  pedidos_restaurante[]
+  reservas_evento                      reservas_evento[]
+  reservas_hotel                       reservas_hotel[]
+  reservas_restaurante                 reservas_restaurante[]
+  tareas_tareas_asignado_aTousuarios   tareas[]               @relation("tareas_asignado_aTousuarios")
+  tareas_tareas_asignado_porTousuarios tareas[]               @relation("tareas_asignado_porTousuarios")
+  roles                                roles                  @relation(fields: [rol_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_usuario_rol")
+  tipos_documento                      tipos_documento        @relation(fields: [tipo_documento_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_usuario_tipo_documento")
+}
+
+model tareas {
+  id                                     BigInt    @id @default(autoincrement())
+  titulo                                 String    @db.VarChar(150)
+  descripcion                            String?
+  fecha                                  DateTime  @db.Date
+  hora_inicio                            DateTime? @db.Time(6)
+  hora_fin                               DateTime? @db.Time(6)
+  estado                                 String    @default("PENDIENTE") @db.VarChar(20)
+  prioridad                              String    @default("MEDIA") @db.VarChar(20)
+  asignado_por                           BigInt
+  asignado_a                             BigInt
+  created_at                             DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                             DateTime? @default(now()) @db.Timestamp(6)
+  usuarios_tareas_asignado_aTousuarios   usuarios  @relation("tareas_asignado_aTousuarios", fields: [asignado_a], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios_tareas_asignado_porTousuarios usuarios  @relation("tareas_asignado_porTousuarios", fields: [asignado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
