@@ -12,6 +12,8 @@ import { HealthController } from './presentation/controllers/health.controller';
 import { BullModule } from '@nestjs/bullmq';
 import { RateLimitModule } from './infrastructure/persistence/redis/rate-limit.module';
 import { HotelModule } from './hotel/hotel.module';
+import { MongooseModule } from '@nestjs/mongoose';
+import { ConfiguracionesModule } from './configuraciones/configuraciones.module';
 import { PaymentsModule } from './payments/payments.module';
 
 @Module({
@@ -24,6 +26,7 @@ import { PaymentsModule } from './payments/payments.module';
         url: process.env.REDIS_URL ?? 'redis://localhost:6379',
       },
     }),
+    MongooseModule.forRoot(process.env.MONGODB_URI ?? ''),
     PostgresModule,
     RedisModule,
     MailModule,
@@ -34,6 +37,7 @@ import { PaymentsModule } from './payments/payments.module';
     HotelModule,
     AdminModule,
     PaymentsModule,
+    ConfiguracionesModule,
   ],
   controllers: [AppController, HealthController],
   providers: [],
