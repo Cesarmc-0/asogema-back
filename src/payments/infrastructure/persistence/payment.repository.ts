@@ -19,6 +19,8 @@ export class PaymentRepositoryImpl implements PaymentRepository {
         impuestos: data.impuestos,
         total: data.total,
         estado: data.estado,
+        reserva_id: data.reserva_id ?? null,
+        tipo_reserva: data.tipo_reserva ?? null,
       },
       select: { id: true },
     });

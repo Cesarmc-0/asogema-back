@@ -6,6 +6,8 @@ export interface CreateFacturaInput {
   impuestos: Decimal;
   total: Decimal;
   estado: string;
+  reserva_id?: bigint | null;
+  tipo_reserva?: string | null;
 }
 
 export interface CreatePagoInput {
@@ -25,6 +27,8 @@ export interface FacturaWithPagos {
   descuentos: Decimal | null;
   total: Decimal;
   estado: string;
+  reserva_id: bigint | null;
+  tipo_reserva: string | null;
   created_at: Date | null;
   pagos: {
     id: bigint;

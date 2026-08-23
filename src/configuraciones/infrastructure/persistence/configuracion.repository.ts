@@ -26,8 +26,13 @@ export class ConfiguracionRepository implements IConfiguracionRepository {
     return docs.map((doc) => this.toEntity(doc));
   }
 
-  async findByCategoria(categoria: string): Promise<ConfiguracionEntity | null> {
-    const doc = await this.model.findOne({ categoria }).lean<LeanConfiguracionDoc>().exec();
+  async findByCategoria(
+    categoria: string,
+  ): Promise<ConfiguracionEntity | null> {
+    const doc = await this.model
+      .findOne({ categoria })
+      .lean<LeanConfiguracionDoc>()
+      .exec();
     return doc ? this.toEntity(doc) : null;
   }
 

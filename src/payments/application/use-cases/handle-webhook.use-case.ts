@@ -92,10 +92,51 @@ export class HandleWebhookUseCase {
       await this.paymentRepo.updateFacturaEstado(pago.factura_id, 'PAGADA');
       this.logger.log(`Factura ${pago.factura_id} marcada como PAGADA`);
 
+      await this.confirmarReserva(pago.factura_id);
       await this.sendPurchaseReceipt(pago.factura_id);
     }
 
     return { processed: true };
+  }
+
+  private async confirmarReserva(facturaId: bigint): Promise<void> {
+    try {
+      const factura = await this.paymentRepo.findFacturaById(facturaId);
+      if (!factura?.reserva_id || !factura?.tipo_reserva) {
+        this.logger.log(
+          `Factura ${facturaId} sin reserva asociada, skip confirmación`,
+        );
+        return;
+      }
+
+      const tableMap: Record<string, string> = {
+        EVENTO: 'reservas_evento',
+        HOTEL: 'reservas_hotel',
+        RESTAURANTE: 'reservas_restaurante',
+      };
+      const table = tableMap[factura.tipo_reserva];
+      if (!table) {
+        this.logger.warn(
+          `Tipo de reserva desconocido: ${factura.tipo_reserva}`,
+        );
+        return;
+      }
+
+      await this.prisma.$executeRawUnsafe(
+        `UPDATE ${table} SET estado = 'CONFIRMADA', updated_at = NOW() WHERE id = $1`,
+        factura.reserva_id,
+      );
+
+      this.logger.log(
+        `Reserva ${factura.tipo_reserva} #${factura.reserva_id} confirmada por pago aprobado`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `No se pudo confirmar reserva para factura ${facturaId}: ${
+          error instanceof Error ? error.message : 'error desconocido'
+        }`,
+      );
+    }
   }
 
   private async sendPurchaseReceipt(facturaId: bigint): Promise<void> {

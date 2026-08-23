@@ -27,6 +27,7 @@ export class PaymentsController {
       reserva_id: BigInt(dto.reserva_id),
       monto: dto.monto,
       metodo_pago: dto.metodo_pago,
+      tipo_reserva: dto.tipo_reserva as 'EVENTO' | 'HOTEL',
     });
   }
 

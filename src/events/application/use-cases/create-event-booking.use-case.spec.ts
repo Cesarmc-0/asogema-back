@@ -83,7 +83,10 @@ describe('CreateEventBookingUseCase', () => {
 
     expect(result).toHaveProperty('id', 1n);
     expect(result).toHaveProperty('payment');
-    expect(mockCreatePaymentUseCase.execute).toHaveBeenCalled();
+    expect(mockCreatePaymentUseCase.execute).toHaveBeenCalledWith(
+      1n,
+      expect.objectContaining({ tipo_reserva: 'EVENTO' }),
+    );
   });
 
   it('debe lanzar NotFoundException si salón no existe', async () => {

@@ -101,6 +101,7 @@ export class CreateEventBookingUseCase {
         reserva_id: reserva.id,
         monto: anticipo,
         metodo_pago: 'WOMPI',
+        tipo_reserva: 'EVENTO',
       });
     } catch (error) {
       this.logger.error(

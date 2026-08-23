@@ -7,6 +7,7 @@ import {
 import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 import { EmailSender } from 'src/infrastructure/mail/domain/email-sender.interface';
 import { HotelRoomRepository } from '../../../hotel/domain/repositories/hotel-room.repository.interface';
+import { CreatePaymentUseCase } from 'src/payments/application/use-cases/create-payment.use-case';
 
 @Injectable()
 export class CreateHotelBookingUseCase {
@@ -16,6 +17,7 @@ export class CreateHotelBookingUseCase {
     private readonly hotelRepository: HotelRoomRepository,
     private readonly prisma: PrismaService,
     private readonly emailSender: EmailSender,
+    private readonly createPaymentUseCase: CreatePaymentUseCase,
   ) {}
 
   async execute(
@@ -77,7 +79,23 @@ export class CreateHotelBookingUseCase {
       total,
     );
 
-    return reserva;
+    let paymentInfo: Record<string, unknown> | null = null;
+    try {
+      paymentInfo = await this.createPaymentUseCase.execute(usuario_id, {
+        reserva_id: reserva.id,
+        monto: total,
+        metodo_pago: 'WOMPI',
+        tipo_reserva: 'HOTEL',
+      });
+    } catch (error) {
+      this.logger.error(
+        `No se pudo crear el pago para reserva de hotel ${reserva.id}: ${
+          error instanceof Error ? error.message : 'error desconocido'
+        }`,
+      );
+    }
+
+    return { ...reserva, payment: paymentInfo };
   }
 
   private async notifyBookingConfirmation(
