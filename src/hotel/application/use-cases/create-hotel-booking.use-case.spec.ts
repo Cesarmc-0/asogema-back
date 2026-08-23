@@ -20,6 +20,15 @@ const mockEmailSender = {
   sendPurchaseReceipt: jest.fn(),
 } as any;
 
+const mockCreatePaymentUseCase = {
+  execute: jest.fn().mockResolvedValue({
+    factura_id: 100n,
+    pago_id: 200n,
+    checkout_url: 'https://checkout.wompi.co/l/test123',
+    total: 476000,
+  }),
+};
+
 describe('CreateHotelBookingUseCase', () => {
   let useCase: CreateHotelBookingUseCase;
 
@@ -28,6 +37,7 @@ describe('CreateHotelBookingUseCase', () => {
       mockHotelRepository,
       mockPrisma,
       mockEmailSender,
+      mockCreatePaymentUseCase as never,
     );
     mockPrisma.usuarios.findUnique.mockResolvedValue({
       id: 1n,
@@ -63,7 +73,14 @@ describe('CreateHotelBookingUseCase', () => {
       cantidad_huespedes: 2,
     });
 
-    expect(result).toEqual({ id: 1n });
+    expect(result).toEqual({
+      id: 1n,
+      payment: expect.objectContaining({ factura_id: 100n }),
+    });
+    expect(mockCreatePaymentUseCase.execute).toHaveBeenCalledWith(
+      1n,
+      expect.objectContaining({ tipo_reserva: 'HOTEL' }),
+    );
     expect(mockHotelRepository.createBooking).toHaveBeenCalledWith(
       expect.objectContaining({
         usuario_id: 1n,

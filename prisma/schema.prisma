@@ -88,6 +88,7 @@ model habitaciones {
   estado             Boolean          @default(true)
   created_at         DateTime         @default(now()) @db.Timestamp(6)
   updated_at         DateTime         @default(now()) @db.Timestamp(6)
+  imagen_url         String?          @db.VarChar(500)
   tipos_habitacion   tipos_habitacion @relation(fields: [tipo_habitacion_id], references: [id], map: "fk_habitacion_tipo")
   reservas_hotel     reservas_hotel[]
 }
@@ -158,6 +159,7 @@ model productos_menu {
   estado          Boolean          @default(true)
   created_at      DateTime         @default(now()) @db.Timestamp(6)
   updated_at      DateTime         @default(now()) @db.Timestamp(6)
+  imagen_url      String?          @db.VarChar(500)
   detalle_pedido  detalle_pedido[]
   categorias_menu categorias_menu  @relation(fields: [categoria_id], references: [id], map: "fk_producto_categoria")
 }
@@ -243,6 +245,7 @@ model salones {
   descripcion     String?
   created_at      DateTime          @default(now()) @db.Timestamp(6)
   updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  imagen_url      String?           @db.VarChar(500)
   reservas_evento reservas_evento[]
 }
 
@@ -289,6 +292,7 @@ model tipos_habitacion {
   estado       Boolean        @default(true)
   created_at   DateTime       @default(now()) @db.Timestamp(6)
   updated_at   DateTime       @default(now()) @db.Timestamp(6)
+  imagen_url   String?        @db.VarChar(500)
   habitaciones habitaciones[]
 }
 

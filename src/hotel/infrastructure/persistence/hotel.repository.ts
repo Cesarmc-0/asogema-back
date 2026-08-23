@@ -79,7 +79,7 @@ export class HotelRepositoryImpl implements HotelRoomRepository {
         fecha_salida: data.fecha_salida,
         cantidad_huespedes: data.cantidad_huespedes,
         total: data.total,
-        estado: 'CONFIRMADA',
+        estado: 'PENDIENTE',
         observaciones: data.observaciones,
       },
       include: {

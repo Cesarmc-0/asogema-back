@@ -19,6 +19,7 @@ const mockAdminUser = {
   correo: 'admin@asogema.com',
   password_hash: 'hashed_password',
   telefono: '0000000000',
+  correo_verificado: true,
   estado: true,
 };
 
@@ -64,6 +65,7 @@ describe('CreateAdminService', () => {
         correo: 'admin@asogema.com',
         password_hash: 'hashed_password',
         telefono: '0000000000',
+        correo_verificado: true,
       },
     });
   });
@@ -99,6 +101,7 @@ describe('CreateAdminService', () => {
         nombre: 'Administrador',
         apellido: 'Sistema',
         password_hash: 'hashed_password',
+        correo_verificado: true,
       },
     });
   });

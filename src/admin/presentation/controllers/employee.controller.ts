@@ -31,11 +31,7 @@ export class EmployeeController {
           select: { id: true, nombre: true, apellido: true },
         },
       },
-      orderBy: [
-        { estado: 'asc' },
-        { prioridad: 'desc' },
-        { fecha: 'asc' },
-      ],
+      orderBy: [{ estado: 'asc' }, { prioridad: 'desc' }, { fecha: 'asc' }],
     });
 
     return tareas.map((t) => ({
@@ -65,7 +61,9 @@ export class EmployeeController {
     @Body() dto: UpdateTaskStatusDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const tarea = await this.prisma.tareas.findUnique({ where: { id } });
+    const tarea = await this.prisma.tareas.findUnique({
+      where: { id: BigInt(id) },
+    });
 
     if (!tarea) {
       throw new NotFoundException('Tarea no encontrada');
@@ -78,7 +76,7 @@ export class EmployeeController {
     }
 
     const updated = await this.prisma.tareas.update({
-      where: { id },
+      where: { id: BigInt(id) },
       data: {
         estado: dto.estado,
         updated_at: new Date(),

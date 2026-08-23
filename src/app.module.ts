@@ -16,6 +16,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfiguracionesModule } from './configuraciones/configuraciones.module';
 import { PaymentsModule } from './payments/payments.module';
 
+const hasMongo = !!process.env.MONGODB_URI;
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -26,7 +28,7 @@ import { PaymentsModule } from './payments/payments.module';
         url: process.env.REDIS_URL ?? 'redis://localhost:6379',
       },
     }),
-    MongooseModule.forRoot(process.env.MONGODB_URI ?? ''),
+    ...(hasMongo ? [MongooseModule.forRoot(process.env.MONGODB_URI!)] : []),
     PostgresModule,
     RedisModule,
     MailModule,
@@ -37,7 +39,7 @@ import { PaymentsModule } from './payments/payments.module';
     HotelModule,
     AdminModule,
     PaymentsModule,
-    ConfiguracionesModule,
+    ...(hasMongo ? [ConfiguracionesModule] : []),
   ],
   controllers: [AppController, HealthController],
   providers: [],

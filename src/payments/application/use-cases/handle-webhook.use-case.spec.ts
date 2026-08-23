@@ -29,6 +29,7 @@ const mockPrisma = {
       correo: 'carlos@test.com',
     }),
   },
+  $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
 };
 
 const mockEmailSender = {
@@ -76,7 +77,7 @@ describe('HandleWebhookUseCase', () => {
     );
   });
 
-  it('pago aprobado: marca factura como PAGADA y envia recibo', async () => {
+  it('pago aprobado: marca factura como PAGADA, confirma reserva y envia recibo', async () => {
     mockPaymentGateway.verifyWebhookSignature.mockReturnValue(true);
     mockPaymentRepo.findPagoByReferencia.mockResolvedValue({
       id: 200n,
@@ -87,6 +88,8 @@ describe('HandleWebhookUseCase', () => {
       id: 100n,
       usuario_id: 10n,
       estado: 'PENDIENTE',
+      reserva_id: 1n,
+      tipo_reserva: 'HOTEL',
       total: { toString: () => '595000' },
     });
 
@@ -100,6 +103,10 @@ describe('HandleWebhookUseCase', () => {
     expect(mockPaymentRepo.updateFacturaEstado).toHaveBeenCalledWith(
       100n,
       'PAGADA',
+    );
+    expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE reservas_hotel'),
+      1n,
     );
     expect(mockEmailSender.sendPurchaseReceipt).toHaveBeenCalledWith(
       expect.objectContaining({

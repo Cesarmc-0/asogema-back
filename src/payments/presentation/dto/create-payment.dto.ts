@@ -1,4 +1,4 @@
-import { IsInt, IsNumber, IsString, IsNotEmpty } from 'class-validator';
+import { IsInt, IsNumber, IsString, IsNotEmpty, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreatePaymentDto {
@@ -13,4 +13,9 @@ export class CreatePaymentDto {
   @IsString()
   @IsNotEmpty()
   metodo_pago!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsIn(['EVENTO', 'HOTEL', 'RESTAURANTE'])
+  tipo_reserva!: string;
 }
