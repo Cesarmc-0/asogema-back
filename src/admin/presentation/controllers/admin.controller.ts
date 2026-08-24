@@ -8,11 +8,13 @@ import {
   Query,
   Body,
   BadRequestException,
+  NotFoundException,
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Prisma } from '@prisma/client';
+import type { imagenes as ImagenRow } from '@prisma/client';
 import {
   ApiTags,
   ApiOperation,
@@ -43,6 +45,15 @@ import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { CreateSalonDto } from '../dto/create-salon.dto';
 import { UpdateSalonDto } from '../dto/update-salon.dto';
+import { CreateImagenDto } from '../dto/create-imagen.dto';
+import { UpdateImagenDto } from '../dto/update-imagen.dto';
+import {
+  IMAGEN_ENTIDADES,
+  assertImagenEntity,
+  attachImagenes,
+  syncImagenPrincipal,
+  toImagenDto,
+} from 'src/infrastructure/storage/imagenes.helper';
 
 interface CalendarEvent {
   id: number;
@@ -254,7 +265,7 @@ export class AdminController {
     @Query('tipo_id') tipo_id?: number,
     @Query('piso') piso?: number,
   ) {
-    return this.prisma.habitaciones.findMany({
+    const rooms = await this.prisma.habitaciones.findMany({
       where: {
         ...(tipo_id && { tipo_habitacion_id: BigInt(tipo_id) }),
         ...(piso !== undefined && { piso }),
@@ -271,6 +282,7 @@ export class AdminController {
       },
       orderBy: { numero: 'asc' },
     });
+    return attachImagenes(this.prisma, 'habitacion', rooms);
   }
 
   @Post('rooms')
@@ -357,11 +369,12 @@ export class AdminController {
     summary: 'Listar productos del menú con filtro por categoría',
   })
   async getMenuProducts(@Query('categoria_id') categoria_id?: number) {
-    return this.prisma.productos_menu.findMany({
+    const products = await this.prisma.productos_menu.findMany({
       where: categoria_id ? { categoria_id: BigInt(categoria_id) } : {},
       include: { categorias_menu: { select: { nombre: true } } },
       orderBy: { nombre: 'asc' },
     });
+    return attachImagenes(this.prisma, 'producto', products);
   }
 
   @Post('menu/products')
@@ -411,9 +424,10 @@ export class AdminController {
   @Get('events/salons')
   @ApiOperation({ summary: 'Listar salones de eventos' })
   async getEventSalons() {
-    return this.prisma.salones.findMany({
+    const salons = await this.prisma.salones.findMany({
       orderBy: { nombre: 'asc' },
     });
+    return attachImagenes(this.prisma, 'salon', salons);
   }
 
   @Post('events/salons')
@@ -454,6 +468,249 @@ export class AdminController {
     return this.prisma.salones.delete({
       where: { id: BigInt(id) },
     });
+  }
+
+  // ======================
+  // GALERÍA DE IMÁGENES (tabla polimórfica imagenes)
+  // ======================
+  private parseImagenId(raw: string): bigint {
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1) {
+      throw new BadRequestException('id inválido');
+    }
+    return BigInt(n);
+  }
+
+  @Get('imagenes')
+  @ApiOperation({ summary: 'Listar galería de imágenes de un ítem' })
+  @ApiQuery({ name: 'entidad', required: true, enum: IMAGEN_ENTIDADES })
+  @ApiQuery({ name: 'entidad_id', required: true, type: Number })
+  async getImagenes(
+    @Query('entidad') entidad: string,
+    @Query('entidad_id') entidadId: string,
+  ) {
+    if (!entidad || !entidadId) {
+      throw new BadRequestException('entidad y entidad_id son obligatorios');
+    }
+    const valid = await assertImagenEntity(
+      this.prisma,
+      entidad,
+      this.parseImagenId(entidadId),
+    );
+    const rows = await this.prisma.imagenes.findMany({
+      where: { entidad: valid, entidad_id: this.parseImagenId(entidadId) },
+      select: { id: true, url: true, es_principal: true, orden: true },
+      orderBy: [{ orden: 'asc' }, { id: 'asc' }],
+    });
+    return rows.map(toImagenDto);
+  }
+
+  @Post('imagenes')
+  @ApiOperation({
+    summary:
+      'Agregar imagen a la galería de un ítem (subir el archivo antes vía POST /admin/uploads)',
+  })
+  async createImagen(@Body() body: CreateImagenDto) {
+    const entidadId = BigInt(body.entidad_id);
+    const entidad = await assertImagenEntity(
+      this.prisma,
+      body.entidad,
+      entidadId,
+    );
+    const existentes = await this.prisma.imagenes.count({
+      where: { entidad, entidad_id: entidadId },
+    });
+    const esPrincipal = body.es_principal ?? existentes === 0;
+
+    const ops: Prisma.PrismaPromise<unknown>[] = [];
+    if (esPrincipal) {
+      ops.push(
+        this.prisma.imagenes.updateMany({
+          where: { entidad, entidad_id: entidadId },
+          data: { es_principal: false },
+        }),
+        this.prisma.imagenes.create({
+          data: {
+            entidad,
+            entidad_id: entidadId,
+            url: body.url,
+            orden: body.orden ?? existentes,
+            es_principal: true,
+          },
+        }),
+        syncImagenPrincipal(this.prisma, entidad, entidadId, body.url),
+      );
+    } else {
+      ops.push(
+        this.prisma.imagenes.create({
+          data: {
+            entidad,
+            entidad_id: entidadId,
+            url: body.url,
+            orden: body.orden ?? existentes,
+            es_principal: false,
+          },
+        }),
+      );
+    }
+
+    const results = await this.prisma.$transaction(ops);
+    // el create siempre está en la posición 1 si hubo updateMany, si no en 0
+    const created = (esPrincipal ? results[1] : results[0]) as ImagenRow;
+    return toImagenDto(created);
+  }
+
+  @Patch('imagenes/:id')
+  @ApiOperation({
+    summary: 'Actualizar imagen (URL, orden o marcar como principal)',
+  })
+  async updateImagen(@Param('id') id: string, @Body() body: UpdateImagenDto) {
+    const imagenId = this.parseImagenId(id);
+    const current = await this.prisma.imagenes.findUnique({
+      where: { id: imagenId },
+    });
+    if (!current) throw new NotFoundException('Imagen no encontrada');
+
+    const data: Prisma.imagenesUncheckedUpdateInput = {};
+    if (body.url !== undefined) data.url = body.url;
+    if (body.orden !== undefined) data.orden = body.orden;
+
+    const nuevaUrl = body.url ?? current.url;
+    const vaASerPrincipal = body.es_principal ?? current.es_principal;
+
+    const ops: Prisma.PrismaPromise<unknown>[] = [];
+    if (body.es_principal === true && !current.es_principal) {
+      ops.push(
+        this.prisma.imagenes.updateMany({
+          where: {
+            entidad: current.entidad,
+            entidad_id: current.entidad_id,
+            NOT: { id: imagenId },
+          },
+          data: { es_principal: false },
+        }),
+      );
+      data.es_principal = true;
+    } else if (body.es_principal !== undefined) {
+      data.es_principal = body.es_principal;
+    }
+    ops.push(this.prisma.imagenes.update({ where: { id: imagenId }, data }));
+    if (vaASerPrincipal) {
+      // mantener la portada legacy (imagen_url) sincronizada
+      ops.push(
+        syncImagenPrincipal(
+          this.prisma,
+          current.entidad,
+          current.entidad_id,
+          nuevaUrl,
+        ),
+      );
+    }
+
+    const results = await this.prisma.$transaction(ops);
+    const updated = results[
+      ops.length - (vaASerPrincipal ? 2 : 1)
+    ] as ImagenRow;
+
+    // si la principal se desmarcó, reasignar a la de menor orden restante
+    if (current.es_principal && body.es_principal === false) {
+      const siguiente = await this.prisma.imagenes.findFirst({
+        where: {
+          entidad: current.entidad,
+          entidad_id: current.entidad_id,
+          es_principal: true,
+        },
+        orderBy: [{ orden: 'asc' }, { id: 'asc' }],
+      });
+      if (siguiente) {
+        await syncImagenPrincipal(
+          this.prisma,
+          current.entidad,
+          current.entidad_id,
+          siguiente.url,
+        );
+      } else {
+        const fallback = await this.prisma.imagenes.findFirst({
+          where: {
+            entidad: current.entidad,
+            entidad_id: current.entidad_id,
+            NOT: { id: imagenId },
+          },
+          orderBy: [{ orden: 'asc' }, { id: 'asc' }],
+        });
+        if (fallback) {
+          await this.prisma.$transaction([
+            this.prisma.imagenes.update({
+              where: { id: fallback.id },
+              data: { es_principal: true },
+            }),
+            syncImagenPrincipal(
+              this.prisma,
+              current.entidad,
+              current.entidad_id,
+              fallback.url,
+            ),
+          ]);
+        } else {
+          await syncImagenPrincipal(
+            this.prisma,
+            current.entidad,
+            current.entidad_id,
+            null,
+          );
+        }
+      }
+    }
+
+    return toImagenDto(updated);
+  }
+
+  @Delete('imagenes/:id')
+  @ApiOperation({
+    summary:
+      'Eliminar imagen de la galería (si era la principal, se reasigna la portada)',
+  })
+  async deleteImagen(@Param('id') id: string) {
+    const imagenId = this.parseImagenId(id);
+    const current = await this.prisma.imagenes.findUnique({
+      where: { id: imagenId },
+    });
+    if (!current) throw new NotFoundException('Imagen no encontrada');
+
+    await this.prisma.imagenes.delete({ where: { id: imagenId } });
+
+    if (current.es_principal) {
+      const fallback = await this.prisma.imagenes.findFirst({
+        where: {
+          entidad: current.entidad,
+          entidad_id: current.entidad_id,
+        },
+        orderBy: [{ orden: 'asc' }, { id: 'asc' }],
+      });
+      if (fallback) {
+        await this.prisma.$transaction([
+          this.prisma.imagenes.update({
+            where: { id: fallback.id },
+            data: { es_principal: true },
+          }),
+          syncImagenPrincipal(
+            this.prisma,
+            current.entidad,
+            current.entidad_id,
+            fallback.url,
+          ),
+        ]);
+      } else {
+        await syncImagenPrincipal(
+          this.prisma,
+          current.entidad,
+          current.entidad_id,
+          null,
+        );
+      }
+    }
+
+    return { deleted: true, id: imagenId.toString() };
   }
 
   // ======================

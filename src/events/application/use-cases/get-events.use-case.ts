@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
+import { attachImagenes } from 'src/infrastructure/storage/imagenes.helper';
 import { SalonConReservas } from 'src/events/domain/repositories/event-repository.interface';
 import { TipoEventoConReservas } from 'src/events/domain/repositories/event-repository.interface';
 
@@ -22,6 +23,9 @@ export class GetEventsUseCase {
       }),
     ]);
 
-    return { salones, tipos_evento: tiposEvento };
+    return {
+      salones: await attachImagenes(this.prisma, 'salon', salones),
+      tipos_evento: tiposEvento,
+    };
   }
 }
