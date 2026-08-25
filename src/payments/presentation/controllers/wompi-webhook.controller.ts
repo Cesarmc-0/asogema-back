@@ -4,7 +4,6 @@ import {
   Req,
   Headers,
   HttpCode,
-  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -15,8 +14,6 @@ import type { Request } from 'express';
 @ApiTags('webhooks')
 @Controller('webhooks')
 export class WompiWebhookController {
-  private readonly logger = new Logger(WompiWebhookController.name);
-
   constructor(private readonly handleWebhookUseCase: HandleWebhookUseCase) {}
 
   @Public()
@@ -29,20 +26,6 @@ export class WompiWebhookController {
     @Headers('x-event-signature') signature: string,
   ) {
     const rawBody = req.rawBody ?? JSON.stringify(req.body);
-
-    this.logger.log('Webhook Wompi recibido');
-
-    try {
-      const result = await this.handleWebhookUseCase.execute(
-        rawBody,
-        signature ?? '',
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Error procesando webhook: ${error instanceof Error ? error.message : 'error desconocido'}`,
-      );
-      return { processed: false };
-    }
+    return this.handleWebhookUseCase.execute(rawBody, signature ?? '');
   }
 }

@@ -1,0 +1,92 @@
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { Decimal } from '@prisma/client/runtime/library';
+import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
+import { RestaurantRepository } from 'src/restaurant/domain/repositories/restaurant-repository.interface';
+
+export const MESA_FEE = 5000;
+export const TIPOS_PEDIDO = ['PARA_LLEVAR', 'EN_MESA'] as const;
+export type TipoPedido = (typeof TIPOS_PEDIDO)[number];
+
+interface CreatePedidoOnlineInput {
+  items: { producto_id: bigint; cantidad: number }[];
+  tipo: TipoPedido;
+}
+
+@Injectable()
+export class CreatePedidoOnlineUseCase {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly restaurantRepo: RestaurantRepository,
+  ) {}
+
+  async execute(usuarioId: bigint, dto: CreatePedidoOnlineInput) {
+    if (dto.items.length === 0) {
+      throw new BadRequestException('El pedido debe tener al menos un item');
+    }
+
+    const productos = await this.prisma.productos_menu.findMany({
+      where: { id: { in: dto.items.map((i) => i.producto_id) } },
+    });
+
+    if (productos.length !== dto.items.length) {
+      throw new BadRequestException('Uno o más productos no existen');
+    }
+
+    let subtotal = 0;
+    const items = dto.items.map((item) => {
+      const producto = productos.find((p) => p.id === item.producto_id);
+      if (!producto || !producto.estado) {
+        throw new BadRequestException(
+          'Uno o más productos no están disponibles',
+        );
+      }
+      if (item.cantidad < 1) {
+        throw new BadRequestException('La cantidad debe ser mayor a cero');
+      }
+      if (item.cantidad > producto.stock) {
+        throw new BadRequestException(
+          `Stock insuficiente para ${producto.nombre} (disponible: ${producto.stock})`,
+        );
+      }
+
+      const linea = Math.round(Number(producto.precio) * item.cantidad);
+      subtotal += linea;
+
+      return {
+        producto_id: item.producto_id,
+        cantidad: item.cantidad,
+        precio_unitario: producto.precio,
+        subtotal: new Decimal(linea),
+      };
+    });
+
+    const incluyeMesa = dto.tipo === 'EN_MESA';
+    const cargoMesa = incluyeMesa ? MESA_FEE : 0;
+    const total = subtotal + cargoMesa;
+
+    const pedido = await this.restaurantRepo.createPedidoOnline({
+      usuario_id: usuarioId,
+      tipo: dto.tipo,
+      incluye_mesa: incluyeMesa,
+      subtotal: new Decimal(subtotal),
+      impuestos: new Decimal(0),
+      descuento: new Decimal(0),
+      total: new Decimal(total),
+      items,
+    });
+
+    return {
+      pedido_id: pedido.id,
+      tipo: pedido.tipo,
+      incluye_mesa: pedido.incluye_mesa,
+      subtotal,
+      cargo_mesa: cargoMesa,
+      total,
+      items: pedido.detalle_pedido_online.map((item) => ({
+        producto_id: item.producto_id,
+        cantidad: item.cantidad,
+        precio_unitario: item.precio_unitario,
+      })),
+    };
+  }
+}

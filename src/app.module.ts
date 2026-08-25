@@ -15,6 +15,9 @@ import { HotelModule } from './hotel/hotel.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfiguracionesModule } from './configuraciones/configuraciones.module';
 import { PaymentsModule } from './payments/payments.module';
+import { FacturacionModule } from './facturacion/facturacion.module';
+import { WalletModule } from './wallet/wallet.module';
+import { GraphqlModule } from './infrastructure/graphql/graphql.module';
 
 @Module({
   imports: [
@@ -26,7 +29,10 @@ import { PaymentsModule } from './payments/payments.module';
         url: process.env.REDIS_URL ?? 'redis://localhost:6379',
       },
     }),
-    MongooseModule.forRoot(process.env.MONGODB_URI ?? ''),
+    ...(process.env.MONGODB_URI
+      ? [MongooseModule.forRoot(process.env.MONGODB_URI)]
+      : []),
+    ...(process.env.MONGODB_URI ? [ConfiguracionesModule] : []),
     PostgresModule,
     RedisModule,
     MailModule,
@@ -37,7 +43,9 @@ import { PaymentsModule } from './payments/payments.module';
     HotelModule,
     AdminModule,
     PaymentsModule,
-    ConfiguracionesModule,
+    FacturacionModule,
+    WalletModule,
+    GraphqlModule,
   ],
   controllers: [AppController, HealthController],
   providers: [],

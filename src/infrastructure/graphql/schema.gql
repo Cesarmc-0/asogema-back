@@ -1,0 +1,103 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type EstadoPagoType {
+  cufe: String
+  estado: String!
+  factura_id: String!
+  numero_factura: String
+  pagos: [PagoType!]!
+  qr_pedido: String
+  qr_url: String
+  reserva_id: String
+  tipo_reserva: String
+  total: Float!
+}
+
+type MiSaldoType {
+  recargas: [RecargaType!]!
+  saldo: Float!
+}
+
+type MisReservasType {
+  eventos: [ReservaEventoType!]!
+  hoteles: [ReservaHotelType!]!
+  pedidosOnline: [PedidoOnlineType!]!
+  restaurante: [ReservaRestauranteType!]!
+}
+
+type PagoType {
+  estado: String!
+  fecha_pago: String
+  id: String!
+  metodo_pago: String!
+  valor: Float!
+}
+
+type PedidoOnlineType {
+  estado: String!
+  factura_id: String
+  pago_estado: String
+  pedido_id: String!
+  qr_url: String
+  tipo: String!
+  total: Float!
+}
+
+type Query {
+  """Estado de pago de una factura del usuario autenticado"""
+  estadoPago(
+    """Id de la factura"""
+    factura_id: String!
+  ): EstadoPagoType!
+
+  """Saldo de la billetera del usuario autenticado"""
+  miSaldo: MiSaldoType!
+
+  """
+  Reservas del usuario autenticado (hotel, eventos, restaurante y pedidos) con su estado de pago
+  """
+  misReservas: MisReservasType!
+}
+
+type RecargaType {
+  created_at: String!
+  estado: String!
+  factura_id: String
+  id: String!
+  monto: Float!
+}
+
+type ReservaEventoType {
+  anticipo: Float!
+  estado: String!
+  factura_id: String
+  fecha: String!
+  pago_estado: String
+  reserva_id: String!
+  salon: String!
+  tipo_evento: String!
+}
+
+type ReservaHotelType {
+  estado: String!
+  factura_id: String
+  fecha_entrada: String!
+  fecha_salida: String!
+  habitacion: String!
+  pago_estado: String
+  reserva_id: String!
+  total: Float!
+}
+
+type ReservaRestauranteType {
+  cantidad_personas: Float!
+  estado: String!
+  factura_id: String
+  fecha: String!
+  hora: String!
+  mesa: String!
+  pago_estado: String
+  reserva_id: String!
+}

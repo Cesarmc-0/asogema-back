@@ -3,9 +3,17 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
 import type { Request } from 'express';
+import { PaymentsModule } from 'src/payments/payments.module';
+import { WalletModule } from 'src/wallet/wallet.module';
+import { MisReservasUseCase } from 'src/infrastructure/graphql/use-cases/mis-reservas.use-case';
+import { PaymentsResolver } from 'src/infrastructure/graphql/resolvers/payments.resolver';
+import { WalletResolver } from 'src/infrastructure/graphql/resolvers/wallet.resolver';
+import { ReservasResolver } from 'src/infrastructure/graphql/resolvers/reservas.resolver';
 
 @Module({
   imports: [
+    PaymentsModule,
+    WalletModule,
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: join(
@@ -13,10 +21,16 @@ import type { Request } from 'express';
         'src/infrastructure/graphql/schema.gql',
       ),
       sortSchema: true,
-      playground: true,
+      playground: process.env.NODE_ENV !== 'production',
       path: '/graphql',
       context: ({ req }: { req: Request }) => ({ req }),
     }),
+  ],
+  providers: [
+    MisReservasUseCase,
+    PaymentsResolver,
+    WalletResolver,
+    ReservasResolver,
   ],
 })
 export class GraphqlModule {}

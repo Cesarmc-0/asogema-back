@@ -63,8 +63,10 @@ describe('NotificationService', () => {
         nombre: 'Juan Pérez',
         correo: 'juan@test.com',
         factura_id: 1n,
+        referencia: 'FACT-1',
+        descripcion: 'Pedido restaurante - Para llevar',
         fecha: '01/08/2026',
-        total: '100.00',
+        total: '$ 100.000',
       }),
     ).resolves.toBeUndefined();
   });

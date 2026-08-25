@@ -99,8 +99,9 @@ export class CreateEventBookingUseCase {
     try {
       paymentInfo = await this.createPaymentUseCase.execute(usuario_id, {
         reserva_id: reserva.id,
-        monto: anticipo,
-        metodo_pago: 'WOMPI',
+        tipo_reserva: 'EVENTO',
+        metodo_pago: 'TARJETA',
+        tipo_tarjeta: 'DEBITO',
       });
     } catch (error) {
       this.logger.error(
