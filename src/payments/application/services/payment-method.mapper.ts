@@ -82,6 +82,14 @@ export class PaymentMethodMapper {
         return {
           type: this.metodoPago,
           phone_number: this.requirePhone(),
+          user_legal_id_type: this.requireValue(
+            this.data.user_legal_id_type,
+            `${this.metodoPago}: indica el tipo de documento (CC o CE)`,
+          ),
+          user_legal_id: this.requireValue(
+            this.data.user_legal_id,
+            `${this.metodoPago}: indica el número de documento`,
+          ),
         };
       case 'PSE':
         return {

@@ -57,6 +57,8 @@ export class CreatePaymentUseCase {
       dto.tipo_reserva === 'RECARGA' ? 0 : calculateIva(baseGravable);
     const total = baseGravable + impuestos;
 
+    await this.validarMayorDeEdad(usuarioId);
+
     const factura = await this.paymentRepo.createFactura({
       usuario_id: usuarioId,
       subtotal: new Decimal(subtotal),
@@ -249,6 +251,36 @@ export class CreatePaymentUseCase {
       saldo_restante,
       reservation_summary: origen.resumen,
     };
+  }
+
+  /**
+   * Solo mayores de 18 años pueden realizar pagos. Se valida con la
+   * fecha de nacimiento del usuario (el sistema no está destinado a menores).
+   */
+  private async validarMayorDeEdad(usuarioId: bigint): Promise<void> {
+    const usuario = await this.prisma.usuarios.findUnique({
+      where: { id: usuarioId },
+      select: { fecha_nacimiento: true },
+    });
+
+    if (!usuario?.fecha_nacimiento) {
+      throw new BadRequestException(
+        'Debes completar tu fecha de nacimiento para realizar pagos',
+      );
+    }
+
+    const nacimiento = new Date(usuario.fecha_nacimiento);
+    const hoy = new Date();
+    let edad = hoy.getFullYear() - nacimiento.getFullYear();
+    const mesDiaActual = hoy.getMonth() * 100 + hoy.getDate();
+    const mesDiaNacimiento = nacimiento.getMonth() * 100 + nacimiento.getDate();
+    if (mesDiaActual < mesDiaNacimiento) edad -= 1;
+
+    if (edad < 18) {
+      throw new BadRequestException(
+        'Solo mayores de 18 años pueden realizar pagos',
+      );
+    }
   }
 
   private validarTipoTarjeta(dto: CreatePaymentInput): string | null {

@@ -17,6 +17,7 @@ const mockPrisma = {
       apellido: 'Martinez',
       correo: 'carlos@test.com',
       telefono: '3000000000',
+      fecha_nacimiento: new Date('1990-01-01'),
     }),
   },
 };
@@ -285,13 +286,22 @@ describe('CreatePaymentUseCase', () => {
       reserva_id: 1n,
       tipo_reserva: 'EVENTO',
       metodo_pago: 'NEQUI',
-      payment_data: { phone_number: '3101234567' },
+      payment_data: {
+        phone_number: '3101234567',
+        user_legal_id_type: 'CC',
+        user_legal_id: '1099888777',
+      },
     });
 
     expect(mockPaymentGateway.createTransaction).toHaveBeenCalledWith(
       expect.objectContaining({
         reference: 'PAGO-200',
-        payment_method: { type: 'NEQUI', phone_number: '3101234567' },
+        payment_method: {
+          type: 'NEQUI',
+          phone_number: '3101234567',
+          user_legal_id_type: 'CC',
+          user_legal_id: '1099888777',
+        },
       }),
     );
     expect(mockPaymentRepo.updatePagoReferencia).toHaveBeenCalledWith(
@@ -318,5 +328,26 @@ describe('CreatePaymentUseCase', () => {
     ).rejects.toThrow(BadRequestException);
 
     expect(mockPaymentGateway.createTransaction).not.toHaveBeenCalled();
+  });
+
+  it('menor de edad: lanza BadRequestException y no crea el pago', async () => {
+    mockPrisma.usuarios.findUnique.mockResolvedValueOnce({
+      nombre: 'Menor',
+      apellido: 'Prueba',
+      correo: 'menor@test.com',
+      telefono: '3000000000',
+      fecha_nacimiento: new Date('2012-01-01'),
+    });
+
+    await expect(
+      useCase.execute(10n, {
+        reserva_id: 1n,
+        tipo_reserva: 'EVENTO',
+        metodo_pago: 'TARJETA',
+        tipo_tarjeta: 'DEBITO',
+      }),
+    ).rejects.toThrow('Solo mayores de 18 años');
+
+    expect(mockPaymentRepo.createFactura).not.toHaveBeenCalled();
   });
 });

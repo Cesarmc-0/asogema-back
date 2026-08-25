@@ -34,7 +34,7 @@ export class PaymentDataDto {
   user_type?: number;
 
   @IsOptional()
-  @IsIn(['CC', 'CE'])
+  @IsIn(['CC', 'CE', 'NIT', 'PP', 'DNI', 'RC', 'TE', 'PPT', 'PA'])
   user_legal_id_type?: string;
 
   @IsOptional()
