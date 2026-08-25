@@ -69,9 +69,9 @@ export class HandleWebhookUseCase {
     }
 
     const factura = await this.paymentRepo.findFacturaById(pago.factura_id);
-    if (factura?.estado === 'PAGADA') {
+    if (factura?.estado !== 'PENDIENTE') {
       this.logger.log(
-        `Factura ${pago.factura_id} ya esta PAGADA, idempotencia OK`,
+        `Factura ${pago.factura_id} en estado ${factura?.estado}, se ignora (idempotencia)`,
       );
       return { processed: false };
     }
@@ -108,7 +108,15 @@ export class HandleWebhookUseCase {
         factura?.reserva_id ?? null,
       );
     } else {
-      await this.paymentRepo.updatePagoEstado(pago.id, mappedStatus);
+      await this.paymentRepo.cancelarPagoCompleto(
+        pago.id,
+        pago.factura_id,
+        factura?.tipo_reserva ?? '',
+        mappedStatus,
+      );
+      this.logger.log(
+        `Factura ${pago.factura_id} cancelada (${mappedStatus}) por estado ${tx.status}`,
+      );
     }
 
     return { processed: true };

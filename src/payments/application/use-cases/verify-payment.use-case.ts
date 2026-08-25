@@ -1,6 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PaymentGateway } from 'src/payments/domain/gateways/payment-gateway.interface';
 import { PaymentRepository } from 'src/payments/domain/repositories/payment.repository.interface';
+import {
+  REFERENCIA_DIRECTA_PREFIX,
+  TRANSACCION_DIRECTA_TIMEOUT_MS,
+} from 'src/payments/domain/payment.constants';
 import { HandleWebhookUseCase } from './handle-webhook.use-case';
 
 @Injectable()
@@ -37,6 +41,22 @@ export class VerifyPaymentUseCase {
     }
 
     if (tx.status === 'PENDING') {
+      // Transacción directa (Nequi/Daviplata/PSE) sin respuesta del cliente:
+      // si venció el tiempo máximo, se cancela.
+      const esDirecta = pago.referencia?.startsWith(REFERENCIA_DIRECTA_PREFIX);
+      const vencida =
+        factura.created_at &&
+        Date.now() - factura.created_at.getTime() >
+          TRANSACCION_DIRECTA_TIMEOUT_MS;
+      if (esDirecta && vencida) {
+        await this.paymentRepo.cancelarPagoCompleto(
+          pago.id,
+          pago.factura_id,
+          factura.tipo_reserva ?? '',
+          'RECHAZADO',
+        );
+        return { estado: 'RECHAZADO', factura_id: pago.factura_id };
+      }
       return { estado: 'PENDIENTE' };
     }
 

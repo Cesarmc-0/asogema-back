@@ -93,6 +93,44 @@ export class PaymentRepositoryImpl implements PaymentRepository {
     });
   }
 
+  async updateFacturaEstado(facturaId: bigint, estado: string): Promise<void> {
+    await this.prisma.facturas.update({
+      where: { id: facturaId },
+      data: { estado },
+    });
+  }
+
+  async cancelarPagoCompleto(
+    pagoId: bigint,
+    facturaId: bigint,
+    tipoReserva: string,
+    estadoPago: string,
+  ): Promise<void> {
+    const updatePago = this.prisma.pagos.update({
+      where: { id: pagoId },
+      data: { estado: estadoPago },
+    });
+    const updateFactura = this.prisma.facturas.update({
+      where: { id: facturaId },
+      data: { estado: 'ANULADA' },
+    });
+
+    await this.prisma.$transaction([updatePago, updateFactura]);
+
+    if (tipoReserva === 'RECARGA') {
+      const recarga = await this.prisma.saldo_recargas.findFirst({
+        where: { factura_id: facturaId },
+        select: { id: true },
+      });
+      if (recarga) {
+        await this.prisma.saldo_recargas.update({
+          where: { id: recarga.id },
+          data: { estado: 'RECHAZADO' },
+        });
+      }
+    }
+  }
+
   async confirmarPagoCompleto(
     pagoId: bigint,
     facturaId: bigint,
@@ -253,26 +291,26 @@ export class PaymentRepositoryImpl implements PaymentRepository {
 
   async findPagoByReferencia(
     referencia: string,
-  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null } | null> {
+  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null; referencia: string | null } | null> {
     return this.prisma.pagos.findFirst({
       where: { referencia },
-      select: { id: true, factura_id: true, estado: true },
+      select: { id: true, factura_id: true, estado: true, referencia: true },
     });
   }
 
   async findPagoByPaymentLinkId(
     paymentLinkId: string,
-  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null } | null> {
+  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null; referencia: string | null } | null> {
     return this.prisma.pagos.findFirst({
       where: { payment_link_id: paymentLinkId },
-      select: { id: true, factura_id: true, estado: true },
+      select: { id: true, factura_id: true, estado: true, referencia: true },
     });
   }
 
   async findPagoByTransaction(
     referencia: string,
     paymentLinkId?: string | null,
-  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null } | null> {
+  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null; referencia: string | null } | null> {
     const porReferencia = await this.findPagoByReferencia(referencia);
     if (porReferencia) return porReferencia;
     if (paymentLinkId) return this.findPagoByPaymentLinkId(paymentLinkId);

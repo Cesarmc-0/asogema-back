@@ -16,6 +16,7 @@ const mockPaymentRepo = {
   updatePagoPaymentLinkId: jest.fn().mockResolvedValue(undefined),
   updateFacturaEstado: jest.fn().mockResolvedValue(undefined),
   confirmarPagoCompleto: jest.fn().mockResolvedValue(undefined),
+  cancelarPagoCompleto: jest.fn().mockResolvedValue(undefined),
   findFacturaById: jest.fn(),
   findPagoByReferencia: jest.fn(),
   findPagoByPaymentLinkId: jest.fn(),
@@ -235,12 +236,13 @@ describe('HandleWebhookUseCase', () => {
     );
   });
 
-  it('pago rechazado: marca pago como RECHAZADO y no envia recibo', async () => {
+  it('pago rechazado: marca pago como RECHAZADO, cancela factura y no envia recibo', async () => {
     mockPaymentGateway.verifyWebhookSignature.mockReturnValue(true);
     mockPaymentRepo.findPagoByReferencia.mockResolvedValue({
       id: 200n,
       factura_id: 100n,
-      estado: 'EN_PROCESO',
+      estado: 'PENDIENTE',
+      referencia: null,
     });
     mockPaymentRepo.findFacturaById.mockResolvedValue(facturaEvento);
 
@@ -250,8 +252,10 @@ describe('HandleWebhookUseCase', () => {
     );
 
     expect(result.processed).toBe(true);
-    expect(mockPaymentRepo.updatePagoEstado).toHaveBeenCalledWith(
+    expect(mockPaymentRepo.cancelarPagoCompleto).toHaveBeenCalledWith(
       200n,
+      100n,
+      facturaEvento.tipo_reserva,
       'RECHAZADO',
     );
     expect(mockPaymentRepo.confirmarPagoCompleto).not.toHaveBeenCalled();

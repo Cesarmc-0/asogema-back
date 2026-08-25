@@ -59,6 +59,17 @@ export abstract class PaymentRepository {
     pagoId: bigint,
     paymentLinkId: string,
   ): Promise<void>;
+  abstract updateFacturaEstado(
+    facturaId: bigint,
+    estado: string,
+  ): Promise<void>;
+  /** Marca el pago como rechazado/anulado y la factura como ANULADA (cancelación). */
+  abstract cancelarPagoCompleto(
+    pagoId: bigint,
+    facturaId: bigint,
+    tipoReserva: string,
+    estadoPago: string,
+  ): Promise<void>;
   abstract confirmarPagoCompleto(
     pagoId: bigint,
     facturaId: bigint,
@@ -69,12 +80,20 @@ export abstract class PaymentRepository {
   abstract findFacturaById(facturaId: bigint): Promise<FacturaWithPagos | null>;
   abstract findPagoByReferencia(
     referencia: string,
-  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null } | null>;
+  ): Promise<PagoResumen | null>;
   abstract findPagoByPaymentLinkId(
     paymentLinkId: string,
-  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null } | null>;
+  ): Promise<PagoResumen | null>;
   /** Busca el pago por referencia de transacción, con fallback al payment link. */
   abstract findPagoByTransaction(
     referencia: string,
     paymentLinkId?: string | null,
-  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null } | null>;}
+  ): Promise<PagoResumen | null>;
+}
+
+export type PagoResumen = {
+  id: bigint;
+  factura_id: bigint;
+  estado: string | null;
+  referencia: string | null;
+};

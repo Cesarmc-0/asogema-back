@@ -24,3 +24,10 @@ export const HOTEL_PORCENTAJE_INICIAL = 0.15;
 
 export const RECARGA_MONTO_MIN = 10000;
 export const RECARGA_MONTO_MAX = 2000000;
+
+/** Tiempo máximo para que el cliente responda una transacción directa (Nequi/Daviplata/PSE). */
+export const TRANSACCION_DIRECTA_TIMEOUT_MS = 10 * 60 * 1000;
+
+/** Prefijo de la referencia de pagos con transacción directa. */
+export const REFERENCIA_DIRECTA_PREFIX = 'PAGO-';
+
