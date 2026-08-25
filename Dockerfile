@@ -31,19 +31,16 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Solo deps de produccion
-COPY package.json pnpm-lock.yaml .npmrc ./
+COPY --chown=node:node package.json pnpm-lock.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile --prod
 
 # Copiar el schema y el cliente Prisma generados desde etapa build
-COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=build /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --chown=node:node --from=build /app/prisma ./prisma
+COPY --chown=node:node --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --chown=node:node --from=build /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 # Copiar el build de NestJS
-COPY --from=build /app/dist ./dist
-
-# Darle ownership de /app al usuario node
-RUN chown -R node:node /app
+COPY --chown=node:node --from=build /app/dist ./dist
 
 # Usuario no-root
 USER node
