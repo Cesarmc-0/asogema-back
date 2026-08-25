@@ -42,6 +42,10 @@ COPY --chown=node:node --from=build /app/node_modules/@prisma/client ./node_modu
 # Copiar el build de NestJS
 COPY --chown=node:node --from=build /app/dist ./dist
 
+# GraphQL code-first escribe schema.gql en runtime (usr node).
+# Pre-creamos /app/src con ownership correcto sin chown -R (lento).
+RUN mkdir -p /app/src && chown node:node /app /app/src /app/node_modules /app/prisma
+
 # Usuario no-root
 USER node
 
