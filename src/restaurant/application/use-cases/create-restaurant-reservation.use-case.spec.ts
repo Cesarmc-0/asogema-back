@@ -23,6 +23,15 @@ const mockEmailSender = {
   sendPurchaseReceipt: jest.fn(),
 } as any;
 
+const mockCreatePaymentUseCase = {
+  execute: jest.fn().mockResolvedValue({
+    factura_id: 100n,
+    pago_id: 200n,
+    checkout_url: 'https://checkout.wompi.co/l/test456',
+    total: 29750,
+  }),
+};
+
 describe('CreateRestaurantReservationUseCase', () => {
   let useCase: CreateRestaurantReservationUseCase;
 
@@ -31,6 +40,7 @@ describe('CreateRestaurantReservationUseCase', () => {
       mockRestaurantRepository,
       mockPrisma,
       mockEmailSender,
+      mockCreatePaymentUseCase as never,
     );
     mockPrisma.usuarios.findUnique.mockResolvedValue({
       id: 1n,
@@ -57,7 +67,18 @@ describe('CreateRestaurantReservationUseCase', () => {
       cantidad_personas: 4,
     });
 
-    expect(result).toEqual({ id: 1n });
+    expect(result).toEqual({
+      id: 1n,
+      payment: expect.objectContaining({ factura_id: 100n }),
+    });
+    expect(mockCreatePaymentUseCase.execute).toHaveBeenCalledWith(
+      1n,
+      expect.objectContaining({
+        monto: 25000,
+        metodo_pago: 'WOMPI',
+        tipo_reserva: 'RESTAURANTE',
+      }),
+    );
   });
 
   it('debe lanzar NotFoundException si mesa no existe', async () => {

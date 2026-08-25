@@ -73,6 +73,42 @@ async function ensureClientes() {
   return creados;
 }
 
+async function ensureEmpleados() {
+  const role = await prisma.roles.findFirst({ where: { nombre: 'Empleado', estado: true } });
+  if (!role) {
+    console.log('Rol Empleado no encontrado. Ejecuta primero la migración de tareas.');
+    return;
+  }
+
+  const empleadosData = [
+    { correo: 'empleado1@asogema.com', nombre: 'Laura', apellido: 'García', numDoc: '200000001', tel: '3201112233' },
+    { correo: 'empleado2@asogema.com', nombre: 'Pedro', apellido: 'Sánchez', numDoc: '200000002', tel: '3204445566' },
+  ];
+
+  for (const e of empleadosData) {
+    const existing = await prisma.usuarios.findUnique({ where: { correo: e.correo } });
+    if (!existing) {
+      const hash = await bcrypt.hash('Empleado123456', 10);
+      await prisma.usuarios.create({
+        data: {
+          rol_id: role.id,
+          tipo_documento_id: 1,
+          nombre: e.nombre,
+          apellido: e.apellido,
+          numero_documento: e.numDoc,
+          correo: e.correo,
+          password_hash: hash,
+          telefono: e.tel,
+          correo_verificado: true,
+        },
+      });
+      console.log(`Empleado creado: ${e.correo}`);
+    } else {
+      console.log(`Empleado ${e.correo} ya existe.`);
+    }
+  }
+}
+
 async function main() {
   console.log('=== Seed Autenticación ===\n');
 
@@ -81,6 +117,8 @@ async function main() {
 
   const clientes = await ensureClientes();
   if (clientes.length === 0) return;
+
+  await ensureEmpleados();
 
   console.log('\n=== Seed autenticación completado ===');
 }

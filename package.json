@@ -39,6 +39,7 @@
   "dependencies": {
     "@apollo/server": "^5.5.1",
     "@as-integrations/express5": "^1.1.2",
+    "@aws-sdk/client-s3": "^3.1115.0",
     "@nestjs-modules/ioredis": "^2.2.1",
     "@nestjs/apollo": "^13.4.2",
     "@nestjs/bullmq": "^11.0.4",
@@ -53,6 +54,7 @@
     "@nestjs/swagger": "^11.4.6",
     "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^6.19.3",
+    "@types/multer": "^2.2.0",
     "axios": "^1.19.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.80.10",
@@ -62,6 +64,7 @@
     "handlebars": "^4.7.9",
     "ioredis": "^5.11.1",
     "mongoose": "^9.9.2",
+    "multer": "^2.2.0",
     "nodemailer": "^9.0.5",
     "passport-jwt": "^4.0.1",
     "qrcode": "^1.5.4",

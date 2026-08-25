@@ -19,6 +19,8 @@ import { FacturacionModule } from './facturacion/facturacion.module';
 import { WalletModule } from './wallet/wallet.module';
 import { GraphqlModule } from './infrastructure/graphql/graphql.module';
 
+const hasMongo = !!process.env.MONGODB_URI;
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -29,10 +31,7 @@ import { GraphqlModule } from './infrastructure/graphql/graphql.module';
         url: process.env.REDIS_URL ?? 'redis://localhost:6379',
       },
     }),
-    ...(process.env.MONGODB_URI
-      ? [MongooseModule.forRoot(process.env.MONGODB_URI)]
-      : []),
-    ...(process.env.MONGODB_URI ? [ConfiguracionesModule] : []),
+    ...(hasMongo ? [MongooseModule.forRoot(process.env.MONGODB_URI!)] : []),
     PostgresModule,
     RedisModule,
     MailModule,
@@ -46,6 +45,7 @@ import { GraphqlModule } from './infrastructure/graphql/graphql.module';
     FacturacionModule,
     WalletModule,
     GraphqlModule,
+    ...(hasMongo ? [ConfiguracionesModule] : []),
   ],
   controllers: [AppController, HealthController],
   providers: [],

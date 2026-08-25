@@ -6,9 +6,9 @@ async function ensureTiposHabitacion() {
   const n = await prisma.tipos_habitacion.count();
   if (n > 0) { console.log('tipos_habitacion:', n, 'ya existen'); return; }
   await prisma.tipos_habitacion.createMany({ data: [
-    { id: 1, nombre: 'Estandar', capacidad: 2, precio_noche: 120000 },
-    { id: 2, nombre: 'Doble', capacidad: 2, precio_noche: 150000 },
-    { id: 3, nombre: 'Familiar', capacidad: 4, precio_noche: 240000 },
+    { id: 1, nombre: 'Estandar', capacidad: 2, precio_noche: 120000, imagen_url: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&h=520&fit=crop' },
+    { id: 2, nombre: 'Doble', capacidad: 2, precio_noche: 150000, imagen_url: 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800&h=520&fit=crop' },
+    { id: 3, nombre: 'Familiar', capacidad: 4, precio_noche: 240000, imagen_url: 'https://images.unsplash.com/photo-1590490360182-c33d955e8d3e?w=800&h=520&fit=crop' },
   ]});
   console.log('tipos_habitacion: 3 creados');
 }
@@ -45,8 +45,8 @@ async function ensureSalones() {
   const n = await prisma.salones.count();
   if (n > 0) { console.log('salones:', n, 'ya existen'); return; }
   await prisma.salones.createMany({ data: [
-    { id: 1, nombre: 'Salon Principal', capacidad: 100, precio_base: 2000000, ubicacion: 'Piso 1' },
-    { id: 2, nombre: 'Salon VIP', capacidad: 50, precio_base: 1200000, ubicacion: 'Piso 2' },
+    { id: 1, nombre: 'Salon Principal', capacidad: 100, precio_base: 2000000, ubicacion: 'Piso 1', imagen_url: 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800&h=520&fit=crop' },
+    { id: 2, nombre: 'Salon VIP', capacidad: 50, precio_base: 1200000, ubicacion: 'Piso 2', imagen_url: 'https://images.unsplash.com/photo-1431540015161-0bf868a2d407?w=800&h=520&fit=crop' },
   ]});
   console.log('salones: 2 creados');
 }
@@ -91,13 +91,13 @@ async function ensureProductosMenu() {
   const n = await prisma.productos_menu.count();
   if (n > 0) { console.log('productos_menu:', n, 'ya existen'); return; }
   await prisma.productos_menu.createMany({ data: [
-    { categoria_id: 1, nombre: 'Empanadas', precio: 15000, stock: 50 },
-    { categoria_id: 1, nombre: 'Bruschetta', precio: 22000, stock: 30 },
-    { categoria_id: 2, nombre: 'Bandeja Paisa', precio: 45000, stock: 20 },
-    { categoria_id: 2, nombre: 'Lomo al trapo', precio: 65000, stock: 15 },
-    { categoria_id: 3, nombre: 'Gaseosa', precio: 8000, stock: 100 },
-    { categoria_id: 3, nombre: 'Cerveza artesanal', precio: 18000, stock: 50 },
-    { categoria_id: 4, nombre: 'Tres leches', precio: 20000, stock: 25 },
+    { categoria_id: 1, nombre: 'Empanadas', precio: 15000, stock: 50, imagen_url: 'https://images.unsplash.com/photo-1604467707321-70d009801bf4?w=600&h=450&fit=crop' },
+    { categoria_id: 1, nombre: 'Bruschetta', precio: 22000, stock: 30, imagen_url: 'https://images.unsplash.com/photo-1572695157366-5e585ab2b69f?w=600&h=450&fit=crop' },
+    { categoria_id: 2, nombre: 'Bandeja Paisa', precio: 45000, stock: 20, imagen_url: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=600&h=450&fit=crop' },
+    { categoria_id: 2, nombre: 'Lomo al trapo', precio: 65000, stock: 15, imagen_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&h=450&fit=crop' },
+    { categoria_id: 3, nombre: 'Gaseosa', precio: 8000, stock: 100, imagen_url: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600&h=450&fit=crop' },
+    { categoria_id: 3, nombre: 'Cerveza artesanal', precio: 18000, stock: 50, imagen_url: 'https://images.unsplash.com/photo-1535958636474-b021ee887b13?w=600&h=450&fit=crop' },
+    { categoria_id: 4, nombre: 'Tres leches', precio: 20000, stock: 25, imagen_url: 'https://images.unsplash.com/photo-1571115177098-24ec42ed204d?w=600&h=450&fit=crop' },
   ]});
   console.log('productos_menu: 7 creados');
 }

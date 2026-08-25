@@ -8,8 +8,10 @@ import { ActualizarEstadoPedidoUseCase } from 'src/restaurant/application/use-ca
 import { RestaurantRepository } from 'src/restaurant/domain/repositories/restaurant-repository.interface';
 import { RestaurantRepositoryImpl } from 'src/restaurant/infrastructure/persistence/restaurant.repository';
 import { RestaurantController } from 'src/restaurant/presentation/controllers/restaurant.controller';
+import { PaymentsModule } from 'src/payments/payments.module';
 
 @Module({
+  imports: [PaymentsModule],
   controllers: [RestaurantController],
   providers: [
     GetMenuUseCase,

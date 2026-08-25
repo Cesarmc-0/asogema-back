@@ -39,13 +39,15 @@ export class CreateAdminService {
         correo: ADMIN_EMAIL,
         password_hash,
         telefono: '0000000000',
+        correo_verificado: true,
       };
 
       if (existing) {
         const needsUpdate =
           existing.rol_id !== role.id ||
           existing.nombre !== adminData.nombre ||
-          existing.apellido !== adminData.apellido;
+          existing.apellido !== adminData.apellido ||
+          !existing.correo_verificado;
 
         if (needsUpdate) {
           await this.prisma.usuarios.update({
@@ -55,6 +57,7 @@ export class CreateAdminService {
               nombre: adminData.nombre,
               apellido: adminData.apellido,
               password_hash,
+              correo_verificado: true,
             },
           });
           this.logger.log(`Admin ${ADMIN_EMAIL} actualizado.`);
