@@ -12,6 +12,7 @@ const productos = [
     precio: new Decimal(20000),
     stock: 10,
     estado: true,
+    aplica_iva: true,
   },
   {
     id: 2n,
@@ -19,6 +20,7 @@ const productos = [
     precio: new Decimal(5000),
     stock: 3,
     estado: true,
+    aplica_iva: false,
   },
 ];
 
@@ -63,12 +65,17 @@ describe('CreatePedidoOnlineUseCase', () => {
       tipo: 'PARA_LLEVAR',
     });
 
+    // Hamburguesa 2x20000 (con IVA) + Gaseosa 5000 (exenta) → IVA solo sobre 40000
     expect(result.subtotal).toBe(45000);
+    expect(result.impuestos).toBe(7600);
     expect(result.cargo_mesa).toBe(0);
-    expect(result.total).toBe(45000);
+    expect(result.total).toBe(52600);
     expect(result.incluye_mesa).toBe(false);
     expect(mockRestaurantRepo.createPedidoOnline).toHaveBeenCalledWith(
-      expect.objectContaining({ total: new Decimal(45000) }),
+      expect.objectContaining({
+        total: new Decimal(52600),
+        impuestos: new Decimal(7600),
+      }),
     );
   });
 
@@ -79,8 +86,9 @@ describe('CreatePedidoOnlineUseCase', () => {
     });
 
     expect(result.subtotal).toBe(20000);
+    expect(result.impuestos).toBe(3800);
     expect(result.cargo_mesa).toBe(MESA_FEE);
-    expect(result.total).toBe(25000);
+    expect(result.total).toBe(28800);
     expect(result.incluye_mesa).toBe(true);
   });
 

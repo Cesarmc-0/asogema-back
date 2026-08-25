@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 import { RestaurantRepository } from 'src/restaurant/domain/repositories/restaurant-repository.interface';
+import { IVA_DEFAULT_RATE } from 'src/facturacion/domain/iva.util';
 
 export const MESA_FEE = 5000;
 export const TIPOS_PEDIDO = ['PARA_LLEVAR', 'EN_MESA'] as const;
@@ -33,6 +34,7 @@ export class CreatePedidoOnlineUseCase {
     }
 
     let subtotal = 0;
+    let baseIva = 0;
     const items = dto.items.map((item) => {
       const producto = productos.find((p) => p.id === item.producto_id);
       if (!producto || !producto.estado) {
@@ -51,6 +53,7 @@ export class CreatePedidoOnlineUseCase {
 
       const linea = Math.round(Number(producto.precio) * item.cantidad);
       subtotal += linea;
+      if (producto.aplica_iva !== false) baseIva += linea;
 
       return {
         producto_id: item.producto_id,
@@ -62,14 +65,15 @@ export class CreatePedidoOnlineUseCase {
 
     const incluyeMesa = dto.tipo === 'EN_MESA';
     const cargoMesa = incluyeMesa ? MESA_FEE : 0;
-    const total = subtotal + cargoMesa;
+    const impuestos = Math.round(baseIva * IVA_DEFAULT_RATE);
+    const total = subtotal + cargoMesa + impuestos;
 
     const pedido = await this.restaurantRepo.createPedidoOnline({
       usuario_id: usuarioId,
       tipo: dto.tipo,
       incluye_mesa: incluyeMesa,
       subtotal: new Decimal(subtotal),
-      impuestos: new Decimal(0),
+      impuestos: new Decimal(impuestos),
       descuento: new Decimal(0),
       total: new Decimal(total),
       items,
@@ -80,6 +84,7 @@ export class CreatePedidoOnlineUseCase {
       tipo: pedido.tipo,
       incluye_mesa: pedido.incluye_mesa,
       subtotal,
+      impuestos,
       cargo_mesa: cargoMesa,
       total,
       items: pedido.detalle_pedido_online.map((item) => ({

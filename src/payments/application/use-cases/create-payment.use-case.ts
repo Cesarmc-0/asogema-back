@@ -54,7 +54,13 @@ export class CreatePaymentUseCase {
     const descuento = Math.round((subtotal * porcentajeCupon) / 100);
     const baseGravable = subtotal - descuento;
     const impuestos =
-      dto.tipo_reserva === 'RECARGA' ? 0 : calculateIva(baseGravable);
+      origen.impuestos != null
+        ? Math.round(
+            origen.impuestos * (subtotal > 0 ? baseGravable / subtotal : 0),
+          )
+        : dto.tipo_reserva === 'RECARGA'
+          ? 0
+          : calculateIva(baseGravable);
     const total = baseGravable + impuestos;
 
     await this.validarMayorDeEdad(usuarioId);

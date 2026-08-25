@@ -23,6 +23,8 @@ export interface ReservaOrigen {
   descripcion: string;
   resumen: Record<string, unknown>;
   reservaId: bigint | null;
+  /** IVA ya calculado del origen (restaurante: por producto con aplica_iva). */
+  impuestos?: number;
 }
 
 /**
@@ -131,8 +133,9 @@ export class PaymentOriginResolver {
     this.validarPendiente(pedido.estado);
 
     return {
-      monto: Number(pedido.total),
+      monto: Number(pedido.total) - Number(pedido.impuestos ?? 0),
       descripcion: `Pedido restaurante - ${pedido.tipo === 'EN_MESA' ? 'En mesa' : 'Para llevar'}`,
+      impuestos: Number(pedido.impuestos ?? 0),
       resumen: {
         tipo: pedido.tipo,
         incluye_mesa: pedido.incluye_mesa,

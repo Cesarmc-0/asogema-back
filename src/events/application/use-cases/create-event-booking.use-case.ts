@@ -17,7 +17,6 @@ export class CreateEventBookingUseCase {
     private readonly eventRepository: EventRepository,
     private readonly prisma: PrismaService,
     private readonly emailSender: EmailSender,
-    private readonly createPaymentUseCase: CreatePaymentUseCase,
   ) {}
 
   async execute(
@@ -95,23 +94,7 @@ export class CreateEventBookingUseCase {
       anticipo,
     );
 
-    let paymentInfo: Record<string, unknown> | null = null;
-    try {
-      paymentInfo = await this.createPaymentUseCase.execute(usuario_id, {
-        reserva_id: reserva.id,
-        tipo_reserva: 'EVENTO',
-        metodo_pago: 'TARJETA',
-        tipo_tarjeta: 'DEBITO',
-      });
-    } catch (error) {
-      this.logger.error(
-        `No se pudo crear el pago para reserva ${reserva.id}: ${
-          error instanceof Error ? error.message : 'error desconocido'
-        }`,
-      );
-    }
-
-    return { ...reserva, payment: paymentInfo };
+    return { ...reserva, anticipo: Number(anticipo) };
   }
 
   private async notifyBookingConfirmation(
