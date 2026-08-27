@@ -8,11 +8,13 @@ import {
   Query,
   Body,
   BadRequestException,
+  ConflictException,
   NotFoundException,
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import * as bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
 import type { imagenes as ImagenRow } from '@prisma/client';
 import {
@@ -47,6 +49,8 @@ import { CreateSalonDto } from '../dto/create-salon.dto';
 import { UpdateSalonDto } from '../dto/update-salon.dto';
 import { CreateImagenDto } from '../dto/create-imagen.dto';
 import { UpdateImagenDto } from '../dto/update-imagen.dto';
+import { CreateEmployeeDto } from '../dto/create-employee.dto';
+import { UpdateEmployeeDto } from '../dto/update-employee.dto';
 import {
   IMAGEN_ENTIDADES,
   assertImagenEntity,
@@ -1230,6 +1234,9 @@ export class AdminController {
     hora_fin: Date | null;
     estado: string;
     prioridad: string;
+    reporte: string | null;
+    reporte_imagen_url: string | null;
+    reporte_at: Date | null;
     created_at: Date | null;
     updated_at: Date | null;
     usuarios_tareas_asignado_aTousuarios: {
@@ -1253,6 +1260,9 @@ export class AdminController {
       hora_fin: this.fmtTime(t.hora_fin),
       estado: t.estado,
       prioridad: t.prioridad,
+      reporte: t.reporte,
+      reporte_imagen_url: t.reporte_imagen_url,
+      reporte_at: t.reporte_at,
       asignado_a: t.usuarios_tareas_asignado_aTousuarios
         ? {
             id: Number(t.usuarios_tareas_asignado_aTousuarios.id),
@@ -1300,6 +1310,164 @@ export class AdminController {
       correo: e.correo,
       telefono: e.telefono,
     }));
+  }
+
+  @Get('employees/:id')
+  @ApiOperation({ summary: 'Detalle de empleado' })
+  async getEmployee(@Param('id') id: string) {
+    const emp = await this.prisma.usuarios.findUnique({
+      where: { id: BigInt(id) },
+      include: { roles: true },
+    });
+
+    if (!emp || emp.roles?.nombre !== 'Empleado') {
+      throw new NotFoundException('Empleado no encontrado');
+    }
+
+    return {
+      id: Number(emp.id),
+      nombre: emp.nombre,
+      apellido: emp.apellido,
+      correo: emp.correo,
+      telefono: emp.telefono,
+      tipo_documento_id: Number(emp.tipo_documento_id),
+      numero_documento: emp.numero_documento,
+      estado: emp.estado,
+    };
+  }
+
+  @Post('employees')
+  @ApiOperation({ summary: 'Crear nuevo empleado' })
+  async createEmployee(@Body() body: CreateEmployeeDto) {
+    const existing = await this.prisma.usuarios.findFirst({
+      where: {
+        OR: [
+          { correo: body.correo },
+          { numero_documento: body.numero_documento },
+        ],
+      },
+    });
+
+    if (existing) {
+      const field =
+        existing.correo === body.correo ? 'correo' : 'número de documento';
+      throw new ConflictException(`El ${field} ya está registrado`);
+    }
+
+    const role = await this.prisma.roles.findFirst({
+      where: { nombre: 'Empleado', estado: true },
+    });
+
+    if (!role) {
+      throw new BadRequestException('Rol de empleado no encontrado');
+    }
+
+    const password_hash = await bcrypt.hash(body.password, 10);
+
+    const emp = await this.prisma.usuarios.create({
+      data: {
+        nombre: body.nombre,
+        apellido: body.apellido,
+        tipo_documento_id: BigInt(body.tipo_documento_id),
+        numero_documento: body.numero_documento,
+        telefono: body.telefono,
+        correo: body.correo,
+        password_hash,
+        rol_id: role.id,
+        correo_verificado: true,
+        estado: true,
+      },
+    });
+
+    return {
+      id: Number(emp.id),
+      nombre: `${emp.nombre} ${emp.apellido}`,
+      correo: emp.correo,
+      telefono: emp.telefono,
+    };
+  }
+
+  @Patch('employees/:id')
+  @ApiOperation({ summary: 'Actualizar empleado' })
+  async updateEmployee(
+    @Param('id') id: string,
+    @Body() body: UpdateEmployeeDto,
+  ) {
+    const existing = await this.prisma.usuarios.findUnique({
+      where: { id: BigInt(id) },
+      include: { roles: true },
+    });
+
+    if (!existing || existing.roles?.nombre !== 'Empleado') {
+      throw new NotFoundException('Empleado no encontrado');
+    }
+
+    if (body.correo || body.numero_documento) {
+      const duplicate = await this.prisma.usuarios.findFirst({
+        where: {
+          id: { not: BigInt(id) },
+          OR: [
+            ...(body.correo ? [{ correo: body.correo }] : []),
+            ...(body.numero_documento
+              ? [{ numero_documento: body.numero_documento }]
+              : []),
+          ],
+        },
+      });
+
+      if (duplicate) {
+        const field =
+          duplicate.correo === body.correo
+            ? 'correo'
+            : 'número de documento';
+        throw new ConflictException(`El ${field} ya está registrado`);
+      }
+    }
+
+    const data: Prisma.usuariosUncheckedUpdateInput = {};
+    if (body.nombre !== undefined) data.nombre = body.nombre;
+    if (body.apellido !== undefined) data.apellido = body.apellido;
+    if (body.tipo_documento_id !== undefined)
+      data.tipo_documento_id = BigInt(body.tipo_documento_id);
+    if (body.numero_documento !== undefined)
+      data.numero_documento = body.numero_documento;
+    if (body.telefono !== undefined) data.telefono = body.telefono;
+    if (body.correo !== undefined) data.correo = body.correo;
+    if (body.password !== undefined) {
+      data.password_hash = await bcrypt.hash(body.password, 10);
+    }
+
+    const emp = await this.prisma.usuarios.update({
+      where: { id: BigInt(id) },
+      data,
+    });
+
+    return {
+      id: Number(emp.id),
+      nombre: `${emp.nombre} ${emp.apellido}`,
+      correo: emp.correo,
+      telefono: emp.telefono,
+    };
+  }
+
+  @Delete('employees/:id')
+  @ApiOperation({ summary: 'Desactivar empleado (soft delete)' })
+  async deleteEmployee(@Param('id') id: string) {
+    const existing = await this.prisma.usuarios.findUnique({
+      where: { id: BigInt(id) },
+      include: { roles: true },
+    });
+
+    if (!existing || existing.roles?.nombre !== 'Empleado') {
+      throw new NotFoundException('Empleado no encontrado');
+    }
+
+    await this.prisma.usuarios.update({
+      where: { id: BigInt(id) },
+      data: { estado: false },
+    });
+
+    return { deleted: true, id };
   }
 
   // ======================

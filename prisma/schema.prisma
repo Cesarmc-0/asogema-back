@@ -352,6 +352,9 @@ model tareas {
   asignado_a                             BigInt
   created_at                             DateTime? @default(now()) @db.Timestamp(6)
   updated_at                             DateTime? @default(now()) @db.Timestamp(6)
+  reporte                                String?
+  reporte_imagen_url                     String?   @db.VarChar(500)
+  reporte_at                             DateTime? @db.Timestamp(6)
   usuarios_tareas_asignado_aTousuarios   usuarios  @relation("tareas_asignado_aTousuarios", fields: [asignado_a], references: [id], onDelete: NoAction, onUpdate: NoAction)
   usuarios_tareas_asignado_porTousuarios usuarios  @relation("tareas_asignado_porTousuarios", fields: [asignado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
