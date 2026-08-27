@@ -3,8 +3,10 @@ import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.se
 import {
   RestaurantRepository,
   CreateReservationInput,
+  CreatePedidoOnlineInput,
   CategoriaConProductos,
   MesaConReservas,
+  PedidoOnlineConItems,
 } from 'src/restaurant/domain/repositories/restaurant-repository.interface';
 
 @Injectable()
@@ -68,6 +70,31 @@ export class RestaurantRepositoryImpl implements RestaurantRepository {
           select: { nombre: true, apellido: true, telefono: true },
         },
       },
+    });
+  }
+
+  async createPedidoOnline(
+    data: CreatePedidoOnlineInput,
+  ): Promise<PedidoOnlineConItems> {
+    return this.prisma.pedidos_online.create({
+      data: {
+        usuario_id: data.usuario_id,
+        tipo: data.tipo,
+        incluye_mesa: data.incluye_mesa,
+        subtotal: data.subtotal,
+        impuestos: data.impuestos,
+        descuento: data.descuento,
+        total: data.total,
+        detalle_pedido_online: {
+          create: data.items.map((item) => ({
+            producto_id: item.producto_id,
+            cantidad: item.cantidad,
+            precio_unitario: item.precio_unitario,
+            subtotal: item.subtotal,
+          })),
+        },
+      },
+      include: { detalle_pedido_online: true },
     });
   }
 }

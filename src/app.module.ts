@@ -15,6 +15,9 @@ import { HotelModule } from './hotel/hotel.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfiguracionesModule } from './configuraciones/configuraciones.module';
 import { PaymentsModule } from './payments/payments.module';
+import { FacturacionModule } from './facturacion/facturacion.module';
+import { WalletModule } from './wallet/wallet.module';
+import { GraphqlModule } from './infrastructure/graphql/graphql.module';
 
 const hasMongo = !!process.env.MONGODB_URI;
 
@@ -39,6 +42,9 @@ const hasMongo = !!process.env.MONGODB_URI;
     HotelModule,
     AdminModule,
     PaymentsModule,
+    FacturacionModule,
+    WalletModule,
+    GraphqlModule,
     ...(hasMongo ? [ConfiguracionesModule] : []),
   ],
   controllers: [AppController, HealthController],

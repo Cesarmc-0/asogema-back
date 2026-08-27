@@ -1,8 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
-import { EmailSender } from 'src/infrastructure/mail/domain/email-sender.interface';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { PaymentGateway } from 'src/payments/domain/gateways/payment-gateway.interface';
 import { PaymentRepository } from 'src/payments/domain/repositories/payment.repository.interface';
+import { ConfirmacionPagoService } from 'src/payments/application/services/confirmacion-pago.service';
 
 export interface WebhookPayload {
   event: string;
@@ -11,11 +10,13 @@ export interface WebhookPayload {
   };
 }
 
-interface WebhookTransaction {
+export interface WebhookTransaction {
   id: string;
   status: string;
   amount_in_cents: number;
+  currency?: string;
   reference: string;
+  payment_link_id?: string | null;
 }
 
 @Injectable()
@@ -25,8 +26,7 @@ export class HandleWebhookUseCase {
   constructor(
     private readonly paymentGateway: PaymentGateway,
     private readonly paymentRepo: PaymentRepository,
-    private readonly prisma: PrismaService,
-    private readonly emailSender: EmailSender,
+    private readonly confirmacionPagoService: ConfirmacionPagoService,
   ) {}
 
   async execute(
@@ -39,7 +39,7 @@ export class HandleWebhookUseCase {
     );
     if (!isValid) {
       this.logger.warn('Firma de webhook invalida');
-      throw new Error('Firma invalida');
+      throw new UnauthorizedException('Firma de webhook inválida');
     }
 
     const payload = JSON.parse(rawBody) as WebhookPayload;
@@ -49,19 +49,18 @@ export class HandleWebhookUseCase {
       `Webhook recibido: event=${payload.event}, tx=${tx.id}, status=${tx.status}`,
     );
 
-    let pago = await this.paymentRepo.findPagoByReferencia(tx.reference);
+    return this.processTransaction(tx);
+  }
 
+  async processTransaction(
+    tx: WebhookTransaction,
+    pago?: { id: bigint; factura_id: bigint; estado: string | null } | null,
+  ): Promise<{ processed: boolean }> {
     if (!pago) {
-      const txData = payload.data.transaction;
-      const paymentLinkId =
-        txData.payment_link_id ??
-        (txData.payment_method as Record<string, unknown> | undefined)
-          ?.payment_link_id;
-
-      if (typeof paymentLinkId === 'string') {
-        this.logger.log(`Buscando pago por payment_link_id=${paymentLinkId}`);
-        pago = await this.paymentRepo.findPagoByPaymentLinkId(paymentLinkId);
-      }
+      pago = await this.paymentRepo.findPagoByTransaction(
+        tx.reference,
+        tx.payment_link_id,
+      );
     }
 
     if (!pago) {
@@ -70,10 +69,18 @@ export class HandleWebhookUseCase {
     }
 
     const factura = await this.paymentRepo.findFacturaById(pago.factura_id);
-    if (factura?.estado === 'PAGADA') {
+    if (factura?.estado !== 'PENDIENTE') {
       this.logger.log(
-        `Factura ${pago.factura_id} ya esta PAGADA, idempotencia OK`,
+        `Factura ${pago.factura_id} en estado ${factura?.estado}, se ignora (idempotencia)`,
       );
+      return { processed: false };
+    }
+
+    if (!this.montoCoincide(tx, factura?.total)) {
+      this.logger.error(
+        `Monto no coincide para tx=${tx.id}: Wompi=${tx.amount_in_cents}, esperado=${Number(factura?.total ?? 0) * 100}. Pago RECHAZADO sin confirmar`,
+      );
+      await this.paymentRepo.updatePagoEstado(pago.id, 'RECHAZADO');
       return { processed: false };
     }
 
@@ -86,89 +93,47 @@ export class HandleWebhookUseCase {
 
     const mappedStatus = statusMap[tx.status] ?? 'PENDIENTE';
 
-    await this.paymentRepo.updatePagoEstado(pago.id, mappedStatus);
-
     if (tx.status === 'APPROVED') {
-      await this.paymentRepo.updateFacturaEstado(pago.factura_id, 'PAGADA');
+      await this.paymentRepo.confirmarPagoCompleto(
+        pago.id,
+        pago.factura_id,
+        factura?.tipo_reserva ?? '',
+        factura?.reserva_id ?? null,
+      );
       this.logger.log(`Factura ${pago.factura_id} marcada como PAGADA`);
 
-      await this.confirmarReserva(pago.factura_id);
-      await this.sendPurchaseReceipt(pago.factura_id);
+      await this.confirmacionPagoService.finalizar(
+        pago.factura_id,
+        factura?.tipo_reserva ?? '',
+        factura?.reserva_id ?? null,
+      );
+    } else {
+      await this.paymentRepo.cancelarPagoCompleto(
+        pago.id,
+        pago.factura_id,
+        factura?.tipo_reserva ?? '',
+        mappedStatus,
+      );
+      this.logger.log(
+        `Factura ${pago.factura_id} cancelada (${mappedStatus}) por estado ${tx.status}`,
+      );
     }
 
     return { processed: true };
   }
 
-  private async confirmarReserva(facturaId: bigint): Promise<void> {
-    try {
-      const factura = await this.paymentRepo.findFacturaById(facturaId);
-      if (!factura?.reserva_id || !factura?.tipo_reserva) {
-        this.logger.log(
-          `Factura ${facturaId} sin reserva asociada, skip confirmación`,
-        );
-        return;
-      }
-
-      const tableMap: Record<string, string> = {
-        EVENTO: 'reservas_evento',
-        HOTEL: 'reservas_hotel',
-        RESTAURANTE: 'reservas_restaurante',
-      };
-      const table = tableMap[factura.tipo_reserva];
-      if (!table) {
-        this.logger.warn(
-          `Tipo de reserva desconocido: ${factura.tipo_reserva}`,
-        );
-        return;
-      }
-
-      await this.prisma.$executeRawUnsafe(
-        `UPDATE ${table} SET estado = 'CONFIRMADA', updated_at = NOW() WHERE id = $1`,
-        factura.reserva_id,
-      );
-
-      this.logger.log(
-        `Reserva ${factura.tipo_reserva} #${factura.reserva_id} confirmada por pago aprobado`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `No se pudo confirmar reserva para factura ${facturaId}: ${
-          error instanceof Error ? error.message : 'error desconocido'
-        }`,
-      );
+  private montoCoincide(
+    tx: WebhookTransaction,
+    totalEsperado: unknown,
+  ): boolean {
+    if (tx.currency && tx.currency !== 'COP') {
+      this.logger.error(`Moneda no esperada para tx=${tx.id}: ${tx.currency}`);
+      return false;
     }
-  }
-
-  private async sendPurchaseReceipt(facturaId: bigint): Promise<void> {
-    try {
-      const factura = await this.paymentRepo.findFacturaById(facturaId);
-      if (!factura) return;
-
-      const usuario = await this.prisma.usuarios.findUnique({
-        where: { id: factura.usuario_id },
-      });
-      if (!usuario) {
-        this.logger.warn(
-          `Usuario ${factura.usuario_id} no encontrado para recibo de compra`,
-        );
-        return;
-      }
-
-      await this.emailSender.sendPurchaseReceipt({
-        nombre: `${usuario.nombre} ${usuario.apellido}`.trim(),
-        correo: usuario.correo,
-        factura_id: facturaId,
-        fecha: new Date().toLocaleDateString('es-CO'),
-        total: String(factura.total),
-      });
-
-      this.logger.log(`Recibo de compra enviado a ${usuario.correo}`);
-    } catch (error) {
-      this.logger.error(
-        `No se pudo enviar recibo de compra para factura ${facturaId}: ${
-          error instanceof Error ? error.message : 'error desconocido'
-        }`,
-      );
+    const total = Number(totalEsperado);
+    if (!Number.isFinite(total)) {
+      return false;
     }
+    return tx.amount_in_cents === Math.round(total * 100);
   }
 }

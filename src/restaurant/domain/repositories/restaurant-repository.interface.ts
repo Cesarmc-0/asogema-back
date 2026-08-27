@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 
 export type CategoriaConProductos = Prisma.categorias_menuGetPayload<{
   include: { productos_menu: true };
@@ -25,6 +26,28 @@ export interface CreateReservationInput {
   observaciones?: string;
 }
 
+export interface CreatePedidoOnlineItemInput {
+  producto_id: bigint;
+  cantidad: number;
+  precio_unitario: Decimal;
+  subtotal: Decimal;
+}
+
+export interface CreatePedidoOnlineInput {
+  usuario_id: bigint;
+  tipo: 'PARA_LLEVAR' | 'EN_MESA';
+  incluye_mesa: boolean;
+  subtotal: Decimal;
+  impuestos: Decimal;
+  descuento: Decimal;
+  total: Decimal;
+  items: CreatePedidoOnlineItemInput[];
+}
+
+export type PedidoOnlineConItems = Prisma.pedidos_onlineGetPayload<{
+  include: { detalle_pedido_online: true };
+}>;
+
 export interface AvailableTablesQuery {
   fecha: Date;
   hora: Date;
@@ -39,4 +62,7 @@ export abstract class RestaurantRepository {
   abstract createReservation(
     data: CreateReservationInput,
   ): Promise<ReservaRestauranteConMesa>;
+  abstract createPedidoOnline(
+    data: CreatePedidoOnlineInput,
+  ): Promise<PedidoOnlineConItems>;
 }

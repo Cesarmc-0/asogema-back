@@ -1,22 +1,29 @@
 <!DOCTYPE html>
 <html lang="es">
   <body style="font-family: Arial, sans-serif; color: #222; line-height: 1.6">
-    <h2 style="color: #1a5fb4">Recibo de compra</h2>
+    <h2 style="color: #133215">Recibo de compra - Asogema</h2>
     <p>Hola {{nombre}}, gracias por tu compra en Asogema.</p>
     <table style="border-collapse: collapse; margin-top: 12px">
       <tr>
-        <td style="padding: 6px 12px; font-weight: bold">N° factura:</td>
-        <td style="padding: 6px 12px">{{factura_id}}</td>
+        <td style="padding: 6px 12px; font-weight: bold">Referencia:</td>
+        <td style="padding: 6px 12px">{{referencia}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 12px; font-weight: bold">Concepto:</td>
+        <td style="padding: 6px 12px">{{descripcion}}</td>
       </tr>
       <tr>
         <td style="padding: 6px 12px; font-weight: bold">Fecha:</td>
         <td style="padding: 6px 12px">{{fecha}}</td>
       </tr>
       <tr>
-        <td style="padding: 6px 12px; font-weight: bold">Total:</td>
-        <td style="padding: 6px 12px">$ {{total}}</td>
+        <td style="padding: 6px 12px; font-weight: bold">Total pagado:</td>
+        <td style="padding: 6px 12px">{{total}}</td>
       </tr>
     </table>
+    <p style="color: #666; font-size: 14px">
+      Si tu compra genera factura electrónica, llegará por separado cuando sea emitida por la DIAN.
+    </p>
     <p style="color: #666; font-size: 14px">
       Para cualquier consulta sobre tu pedido, contáctanos.
     </p>
