@@ -7,7 +7,6 @@ import {
 import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 import { EmailSender } from 'src/infrastructure/mail/domain/email-sender.interface';
 import { EventRepository } from 'src/events/domain/repositories/event-repository.interface';
-import { CreatePaymentUseCase } from 'src/payments/application/use-cases/create-payment.use-case';
 
 @Injectable()
 export class CreateEventBookingUseCase {
