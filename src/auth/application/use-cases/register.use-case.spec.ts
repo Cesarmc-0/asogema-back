@@ -3,8 +3,8 @@ import { RegisterUseCase } from './register.use-case';
 import { AuthRepository } from '../../../auth/domain/repositories/auth.repository.interface';
 import { PrismaService } from '../../../infrastructure/persistence/postgres/prisma.service';
 import { EmailSender } from '../../../infrastructure/mail/domain/email-sender.interface';
-import { ConflictException } from '@nestjs/common';
 import { RegisterDto } from '../../../auth/presentation/dto/register.dto';
+import { AppException } from '../../../common/errors';
 import * as bcrypt from 'bcrypt';
 
 const mockUser = {
@@ -22,6 +22,7 @@ const mockUser = {
 
 const mockAuthRepository = {
   findByEmail: () => Promise.resolve(null),
+  findByDocument: () => Promise.resolve(null),
   create: () => Promise.resolve(mockUser),
 } as unknown as AuthRepository;
 
@@ -43,6 +44,8 @@ describe('RegisterUseCase', () => {
   let useCase: RegisterUseCase;
 
   beforeEach(() => {
+    (mockAuthRepository as any).findByEmail = () => Promise.resolve(null);
+    (mockAuthRepository as any).findByDocument = () => Promise.resolve(null);
     useCase = new RegisterUseCase(
       mockAuthRepository,
       mockPrismaService,
@@ -91,7 +94,7 @@ describe('RegisterUseCase', () => {
     });
   });
 
-  it('correo duplicado: lanza ConflictException', async () => {
+  it('correo duplicado: lanza AUTH_EMAIL_ALREADY_EXISTS', async () => {
     mockAuthRepository.findByEmail = () => Promise.resolve(mockUser);
 
     const dto: RegisterDto = {
@@ -104,7 +107,29 @@ describe('RegisterUseCase', () => {
       telefono: '3007654321',
     };
 
-    await expect(useCase.execute(dto)).rejects.toThrow(ConflictException);
+    await expect(useCase.execute(dto)).rejects.toThrow(AppException);
+    await expect(useCase.execute(dto)).rejects.toMatchObject({
+      payload: { code: 'AUTH_EMAIL_ALREADY_EXISTS' },
+    });
+  });
+
+  it('documento de identidad duplicado: lanza AUTH_DOCUMENT_ALREADY_EXISTS', async () => {
+    mockAuthRepository.findByDocument = () => Promise.resolve(mockUser);
+
+    const dto: RegisterDto = {
+      nombre: 'Otro',
+      apellido: 'Usuario',
+      tipo_documento_id: 1,
+      numero_documento: '12345678',
+      correo: 'cual@test.com',
+      password: '123456',
+      telefono: '3007654321',
+    };
+
+    await expect(useCase.execute(dto)).rejects.toThrow(AppException);
+    await expect(useCase.execute(dto)).rejects.toMatchObject({
+      payload: { code: 'AUTH_DOCUMENT_ALREADY_EXISTS' },
+    });
   });
 
   it('hashea la contraseña con bcrypt antes de crear', async () => {
