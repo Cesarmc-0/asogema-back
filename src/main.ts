@@ -1,8 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { ValidatedPipe } from './common/pipes/validation.pipe';
 
 // Serializar BigInt como String para evitar errores en JSON/GraphQL.
 // NECESARIO porque todas las PK son bigint en el esquema de Asogema.
@@ -20,13 +20,7 @@ async function bootstrap() {
     credentials: true,
   });
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  app.useGlobalPipes(new ValidatedPipe());
 
   app.useGlobalFilters(new HttpExceptionFilter());
 

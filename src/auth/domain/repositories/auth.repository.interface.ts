@@ -27,6 +27,9 @@ export interface UpdateProfileInput {
 
 export abstract class AuthRepository {
   abstract findByEmail(correo: string): Promise<UsuarioWithRoles | null>;
+  abstract findByDocument(
+    numero_documento: string,
+  ): Promise<UsuarioConRol | null>;
   abstract create(data: CreateUsuarioInput): Promise<usuarios>;
   abstract findById(id: bigint): Promise<UsuarioConRol | null>;
   abstract update(id: bigint, data: UpdateProfileInput): Promise<UsuarioConRol>;

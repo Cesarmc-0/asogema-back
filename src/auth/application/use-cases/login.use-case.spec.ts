@@ -3,8 +3,8 @@ import { LoginUseCase } from './login.use-case';
 import { AuthRepository } from '../../../auth/domain/repositories/auth.repository.interface';
 import { RefreshTokenRepository } from '../../../auth/domain/repositories/refresh-token.repository.interface';
 import { TokenService } from '../services/token.service';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { LoginDto } from '../../../auth/presentation/dto/login.dto';
+import { AppException } from '../../../common/errors';
 import * as bcrypt from 'bcrypt';
 
 // mocks
@@ -21,6 +21,21 @@ const mockUser = {
 };
 
 type MockUser = typeof mockUser;
+
+function expectAppError(
+  promise: Promise<unknown>,
+  code: string,
+): Promise<void> {
+  return promise.then(
+    () => {
+      throw new Error('Se esperaba una excepción');
+    },
+    (err) => {
+      expect(err).toBeInstanceOf(AppException);
+      expect(err.getPayload().code).toBe(code);
+    },
+  );
+}
 
 const mockAuthRepository = {
   findByEmail: () => Promise.resolve(mockUser),
@@ -89,7 +104,7 @@ describe('LoginUseCase', () => {
   });
 
   //--------------Usario no encontrado---------------
-  it('user no existe: lanza  UnauthorizedException', async () => {
+  it('user no existe: lanza AUTH_INVALID_CREDENTIALS', async () => {
     const dto: LoginDto = {
       correo: 'noexite@test.com',
       password: '123456',
@@ -97,11 +112,11 @@ describe('LoginUseCase', () => {
 
     mockAuthRepository.findByEmail = () => Promise.resolve(null);
 
-    await expect(useCase.execute(dto)).rejects.toThrow(UnauthorizedException);
+    await expectAppError(useCase.execute(dto), 'AUTH_INVALID_CREDENTIALS');
   });
 
   //--------------Password incorrecta------------------
-  it('password incorrecta: lanza UnauthorizedException', async () => {
+  it('password incorrecta: lanza AUTH_INVALID_CREDENTIALS', async () => {
     const dto: LoginDto = {
       correo: 'test@test.com',
       password: 'mala',
@@ -109,10 +124,10 @@ describe('LoginUseCase', () => {
 
     (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
-    await expect(useCase.execute(dto)).rejects.toThrow(UnauthorizedException);
+    await expectAppError(useCase.execute(dto), 'AUTH_INVALID_CREDENTIALS');
   });
 
-  it('user inactivo: lanza UnauthorizedException', async () => {
+  it('user inactivo: lanza AUTH_INVALID_CREDENTIALS', async () => {
     const dto: LoginDto = {
       correo: 'inactivo@test.com',
       password: '123456',
@@ -123,10 +138,10 @@ describe('LoginUseCase', () => {
         ...mockUser,
         estado: false,
       } as MockUser);
-    await expect(useCase.execute(dto)).rejects.toThrow(UnauthorizedException);
+    await expectAppError(useCase.execute(dto), 'AUTH_INVALID_CREDENTIALS');
   });
 
-  it('user con credenciales correctas pero correo sin verificar: lanza ForbiddenException y no emite tokens', async () => {
+  it('user con credenciales correctas pero correo sin verificar: lanza AUTH_EMAIL_NOT_VERIFIED y no emite tokens', async () => {
     const dto: LoginDto = {
       correo: 'sinverificar@test.com',
       password: '123456',
@@ -139,7 +154,29 @@ describe('LoginUseCase', () => {
         correo_verificado: false,
       } as MockUser);
 
-    await expect(useCase.execute(dto)).rejects.toThrow(ForbiddenException);
+    await expectAppError(useCase.execute(dto), 'AUTH_EMAIL_NOT_VERIFIED');
     expect(mockRefreshTokenRepository.save).not.toHaveBeenCalled();
+  });
+});
+
+describe('LoginUseCase - mensaje de error', () => {
+  it('el mensaje de credenciales inválidas es en español', async () => {
+    mockAuthRepository.findByEmail = () => Promise.resolve(null);
+    const useCase = new LoginUseCase(
+      mockAuthRepository,
+      mockTokenService,
+      mockRefreshTokenRepository,
+    );
+
+    try {
+      await useCase.execute({
+        correo: 'x@x.com',
+        password: '123456',
+      });
+    } catch (err) {
+      expect((err as AppException).getPayload().message).toBe(
+        'Correo o contraseña incorrectos',
+      );
+    }
   });
 });
