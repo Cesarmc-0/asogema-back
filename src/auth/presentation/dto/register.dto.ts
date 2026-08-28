@@ -6,6 +6,8 @@ import {
   IsInt,
   IsNotEmpty,
   MaxLength,
+  IsOptional,
+  IsDateString,
 } from 'class-validator';
 
 export class RegisterDto {
@@ -41,4 +43,8 @@ export class RegisterDto {
     message: 'El teléfono no puede superar 20 caracteres',
   })
   telefono: string;
+
+  @IsOptional()
+  @IsDateString({}, { message: 'La fecha de nacimiento no es válida' })
+  fecha_nacimiento?: string;
 }

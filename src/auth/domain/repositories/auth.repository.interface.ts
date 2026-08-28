@@ -15,6 +15,7 @@ export interface CreateUsuarioInput {
   telefono: string;
   password_hash: string;
   rol_id: number;
+  fecha_nacimiento?: Date;
 }
 
 export interface UpdateProfileInput {
