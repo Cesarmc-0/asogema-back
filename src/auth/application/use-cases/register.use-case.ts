@@ -48,6 +48,9 @@ export class RegisterUseCase {
       telefono: dto.telefono,
       password_hash,
       rol_id: Number(role.id),
+      fecha_nacimiento: dto.fecha_nacimiento
+        ? new Date(dto.fecha_nacimiento)
+        : undefined,
     });
 
     await this.notifyRegistration(user);
