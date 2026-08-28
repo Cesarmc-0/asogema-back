@@ -9,7 +9,7 @@ export class GqlThrottlerGuard extends ThrottlerGuard {
   protected async handleRequest(
     requestProps: ThrottlerRequest,
   ): Promise<boolean> {
-    const isGraphql = (requestProps.context.getType() as string) === 'graphql';
+    const isGraphql = requestProps.context.getType() === ('graphql' as string);
     const prevSetHeaders = this.commonOptions.setHeaders;
     if (isGraphql) {
       this.commonOptions.setHeaders = false;
@@ -25,7 +25,7 @@ export class GqlThrottlerGuard extends ThrottlerGuard {
     req: Record<string, unknown>,
     context?: ExecutionContext,
   ): Promise<string> {
-    if (context && (context.getType() as string) === 'graphql') {
+    if (context && context.getType() === ('graphql' as string)) {
       const gqlCtx = GqlExecutionContext.create(context);
       const ctxObj = gqlCtx.getContext<{ req?: Request; request?: Request }>();
       const request = ctxObj?.req ?? ctxObj?.request;
