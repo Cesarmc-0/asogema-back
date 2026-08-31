@@ -106,29 +106,67 @@ export class PaymentRepositoryImpl implements PaymentRepository {
     tipoReserva: string,
     estadoPago: string,
   ): Promise<void> {
-    const updatePago = this.prisma.pagos.update({
-      where: { id: pagoId },
-      data: { estado: estadoPago },
-    });
-    const updateFactura = this.prisma.facturas.update({
-      where: { id: facturaId },
-      data: { estado: 'ANULADA' },
-    });
+    const [factura, pago] = await Promise.all([
+      this.prisma.facturas.findUnique({
+        where: { id: facturaId },
+        select: { usuario_id: true, total: true },
+      }),
+      this.prisma.pagos.findUnique({
+        where: { id: pagoId },
+        select: { metodo_pago: true },
+      }),
+    ]);
 
-    await this.prisma.$transaction([updatePago, updateFactura]);
+    const actualizaciones: PrismaPromise<unknown>[] = [
+      this.prisma.pagos.update({
+        where: { id: pagoId },
+        data: { estado: estadoPago },
+      }),
+      this.prisma.facturas.update({
+        where: { id: facturaId },
+        data: { estado: 'ANULADA' },
+      }),
+    ];
 
-    if (tipoReserva === 'RECARGA') {
-      const recarga = await this.prisma.saldo_recargas.findFirst({
-        where: { factura_id: facturaId },
-        select: { id: true },
-      });
-      if (recarga) {
-        await this.prisma.saldo_recargas.update({
-          where: { id: recarga.id },
+    if (tipoReserva === 'RECARGA' && factura) {
+      // La recarga acreditó saldo al confirmarse: anularla revierte ese crédito.
+      actualizaciones.push(
+        this.prisma.saldo_recargas.updateMany({
+          where: { factura_id: facturaId },
           data: { estado: 'RECHAZADO' },
-        });
-      }
+        }),
+        this.prisma.saldos_usuario.upsert({
+          where: { usuario_id: factura.usuario_id },
+          create: {
+            usuario_id: factura.usuario_id,
+            saldo: 0,
+          },
+          update: {
+            saldo: { decrement: factura.total },
+          },
+        }),
+      );
+    } else if (
+      tipoReserva !== 'RECARGA' &&
+      pago?.metodo_pago === 'SALDO' &&
+      factura
+    ) {
+      // Consumo pagado con saldo: anularlo devuelve el saldo descontado.
+      actualizaciones.push(
+        this.prisma.saldos_usuario.upsert({
+          where: { usuario_id: factura.usuario_id },
+          create: {
+            usuario_id: factura.usuario_id,
+            saldo: factura.total,
+          },
+          update: {
+            saldo: { increment: factura.total },
+          },
+        }),
+      );
     }
+
+    await this.prisma.$transaction(actualizaciones);
   }
 
   async confirmarPagoCompleto(
@@ -274,7 +312,7 @@ export class PaymentRepositoryImpl implements PaymentRepository {
         }),
         client.saldo_recargas.update({
           where: { id: params.reservaId },
-          data: { estado: 'CONFIRMADO' },
+          data: { estado: 'CONFIRMADO', factura_id: params.facturaId },
         }),
       );
     }
@@ -289,18 +327,24 @@ export class PaymentRepositoryImpl implements PaymentRepository {
     });
   }
 
-  async findPagoByReferencia(
-    referencia: string,
-  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null; referencia: string | null } | null> {
+  async findPagoByReferencia(referencia: string): Promise<{
+    id: bigint;
+    factura_id: bigint;
+    estado: string | null;
+    referencia: string | null;
+  } | null> {
     return this.prisma.pagos.findFirst({
       where: { referencia },
       select: { id: true, factura_id: true, estado: true, referencia: true },
     });
   }
 
-  async findPagoByPaymentLinkId(
-    paymentLinkId: string,
-  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null; referencia: string | null } | null> {
+  async findPagoByPaymentLinkId(paymentLinkId: string): Promise<{
+    id: bigint;
+    factura_id: bigint;
+    estado: string | null;
+    referencia: string | null;
+  } | null> {
     return this.prisma.pagos.findFirst({
       where: { payment_link_id: paymentLinkId },
       select: { id: true, factura_id: true, estado: true, referencia: true },
@@ -310,7 +354,12 @@ export class PaymentRepositoryImpl implements PaymentRepository {
   async findPagoByTransaction(
     referencia: string,
     paymentLinkId?: string | null,
-  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null; referencia: string | null } | null> {
+  ): Promise<{
+    id: bigint;
+    factura_id: bigint;
+    estado: string | null;
+    referencia: string | null;
+  } | null> {
     const porReferencia = await this.findPagoByReferencia(referencia);
     if (porReferencia) return porReferencia;
     if (paymentLinkId) return this.findPagoByPaymentLinkId(paymentLinkId);
