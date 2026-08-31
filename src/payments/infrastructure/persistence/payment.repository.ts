@@ -289,18 +289,24 @@ export class PaymentRepositoryImpl implements PaymentRepository {
     });
   }
 
-  async findPagoByReferencia(
-    referencia: string,
-  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null; referencia: string | null } | null> {
+  async findPagoByReferencia(referencia: string): Promise<{
+    id: bigint;
+    factura_id: bigint;
+    estado: string | null;
+    referencia: string | null;
+  } | null> {
     return this.prisma.pagos.findFirst({
       where: { referencia },
       select: { id: true, factura_id: true, estado: true, referencia: true },
     });
   }
 
-  async findPagoByPaymentLinkId(
-    paymentLinkId: string,
-  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null; referencia: string | null } | null> {
+  async findPagoByPaymentLinkId(paymentLinkId: string): Promise<{
+    id: bigint;
+    factura_id: bigint;
+    estado: string | null;
+    referencia: string | null;
+  } | null> {
     return this.prisma.pagos.findFirst({
       where: { payment_link_id: paymentLinkId },
       select: { id: true, factura_id: true, estado: true, referencia: true },
@@ -310,7 +316,12 @@ export class PaymentRepositoryImpl implements PaymentRepository {
   async findPagoByTransaction(
     referencia: string,
     paymentLinkId?: string | null,
-  ): Promise<{ id: bigint; factura_id: bigint; estado: string | null; referencia: string | null } | null> {
+  ): Promise<{
+    id: bigint;
+    factura_id: bigint;
+    estado: string | null;
+    referencia: string | null;
+  } | null> {
     const porReferencia = await this.findPagoByReferencia(referencia);
     if (porReferencia) return porReferencia;
     if (paymentLinkId) return this.findPagoByPaymentLinkId(paymentLinkId);

@@ -30,4 +30,3 @@ export const TRANSACCION_DIRECTA_TIMEOUT_MS = 10 * 60 * 1000;
 
 /** Prefijo de la referencia de pagos con transacción directa. */
 export const REFERENCIA_DIRECTA_PREFIX = 'PAGO-';
-

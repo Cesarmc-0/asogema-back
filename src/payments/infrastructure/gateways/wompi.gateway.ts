@@ -148,14 +148,18 @@ export class WompiGateway extends PaymentGateway {
       return token;
     } catch (error) {
       const e = error as {
-        response?: { data?: { error?: { messages?: Record<string, string[]> } } };
+        response?: {
+          data?: { error?: { messages?: Record<string, string[]> } };
+        };
         message?: string;
       };
       const detalle = e.response?.data?.error?.messages
         ? Object.values(e.response.data.error.messages).flat().join('. ')
         : e.message;
 
-      this.logger.error(`Wompi tokenizeCard falló: ${detalle ?? 'error desconocido'}`);
+      this.logger.error(
+        `Wompi tokenizeCard falló: ${detalle ?? 'error desconocido'}`,
+      );
       throw new BadRequestException(
         detalle ?? 'No se pudo validar la tarjeta. Verifica los datos.',
       );
@@ -164,7 +168,10 @@ export class WompiGateway extends PaymentGateway {
 
   async getFinancialInstitutions(): Promise<FinancialInstitution[]> {
     const { data } = await axios.get<{
-      data: { financial_institution_code: string; financial_institution_name: string }[];
+      data: {
+        financial_institution_code: string;
+        financial_institution_name: string;
+      }[];
     }>(`${this.apiUrl}/pse/financial_institutions`, {
       headers: { Authorization: `Bearer ${this.privateKey}` },
       timeout: 10000,
@@ -199,7 +206,10 @@ export class WompiGateway extends PaymentGateway {
           ? { phone_number: input.payment_method.phone_number }
           : {}),
         ...(input.payment_method.financial_institution_code
-          ? { financial_institution_code: input.payment_method.financial_institution_code }
+          ? {
+              financial_institution_code:
+                input.payment_method.financial_institution_code,
+            }
           : {}),
         ...(input.payment_method.user_type !== undefined
           ? { user_type: input.payment_method.user_type }
@@ -222,29 +232,27 @@ export class WompiGateway extends PaymentGateway {
       },
     };
 
-    const { data } = await axios.post<WompiTransactionResponse>(
-      `${this.apiUrl}/transactions`,
-      body,
-      {
+    const { data } = await axios
+      .post<WompiTransactionResponse>(`${this.apiUrl}/transactions`, body, {
         headers: {
           Authorization: `Bearer ${this.privateKey}`,
           'Content-Type': 'application/json',
         },
         timeout: 15000,
-      },
-    ).catch((err: unknown) => {
-      const e = err as {
-        response?: { status?: number; data?: unknown };
-        message?: string;
-      };
-      const mensaje = this.extraerMensajeError(e.response?.data, e.message);
-      this.logger.error(
-        `Wompi createTransaction falló: status=${e.response?.status ?? 'n/a'}, ${mensaje}`,
-      );
-      throw new BadRequestException(
-        `El proveedor de pagos rechazó la transacción: ${mensaje}`,
-      );
-    });
+      })
+      .catch((err: unknown) => {
+        const e = err as {
+          response?: { status?: number; data?: unknown };
+          message?: string;
+        };
+        const mensaje = this.extraerMensajeError(e.response?.data, e.message);
+        this.logger.error(
+          `Wompi createTransaction falló: status=${e.response?.status ?? 'n/a'}, ${mensaje}`,
+        );
+        throw new BadRequestException(
+          `El proveedor de pagos rechazó la transacción: ${mensaje}`,
+        );
+      });
 
     const transactionId = data.data.id;
 
