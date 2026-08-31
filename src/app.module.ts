@@ -12,6 +12,14 @@ import { HealthController } from './presentation/controllers/health.controller';
 import { BullModule } from '@nestjs/bullmq';
 import { RateLimitModule } from './infrastructure/persistence/redis/rate-limit.module';
 import { HotelModule } from './hotel/hotel.module';
+import { MongooseModule } from '@nestjs/mongoose';
+import { ConfiguracionesModule } from './configuraciones/configuraciones.module';
+import { PaymentsModule } from './payments/payments.module';
+import { FacturacionModule } from './facturacion/facturacion.module';
+import { WalletModule } from './wallet/wallet.module';
+import { GraphqlModule } from './infrastructure/graphql/graphql.module';
+
+const hasMongo = !!process.env.MONGODB_URI;
 
 @Module({
   imports: [
@@ -23,6 +31,7 @@ import { HotelModule } from './hotel/hotel.module';
         url: process.env.REDIS_URL ?? 'redis://localhost:6379',
       },
     }),
+    ...(hasMongo ? [MongooseModule.forRoot(process.env.MONGODB_URI!)] : []),
     PostgresModule,
     RedisModule,
     MailModule,
@@ -32,6 +41,11 @@ import { HotelModule } from './hotel/hotel.module';
     RestaurantModule,
     HotelModule,
     AdminModule,
+    PaymentsModule,
+    FacturacionModule,
+    WalletModule,
+    GraphqlModule,
+    ...(hasMongo ? [ConfiguracionesModule] : []),
   ],
   controllers: [AppController, HealthController],
   providers: [],

@@ -55,6 +55,22 @@ describe('AuthRepositoryImpl', () => {
     });
   });
 
+  describe('findByDocument', () => {
+    it('retorna el usuario que coincide con el número de documento', async () => {
+      (mockPrismaService.usuarios.findUnique as jest.Mock).mockResolvedValue(
+        mockUser,
+      );
+
+      const result = await repo.findByDocument('12345678');
+
+      expect(result).toEqual(mockUser);
+      expect(mockPrismaService.usuarios.findUnique).toHaveBeenCalledWith({
+        where: { numero_documento: '12345678' },
+        include: { roles: true },
+      });
+    });
+  });
+
   describe('create', () => {
     it('crea un usuario y lo retorna', async () => {
       (mockPrismaService.usuarios.create as jest.Mock).mockResolvedValue(

@@ -71,7 +71,8 @@ describe('CreateEventBookingUseCase', () => {
       cantidad_personas: 80,
     });
 
-    expect(result).toEqual({ id: 1n });
+    expect(result).toHaveProperty('id', 1n);
+    expect(result).toHaveProperty('anticipo');
   });
 
   it('debe lanzar NotFoundException si salón no existe', async () => {

@@ -93,7 +93,7 @@ export class CreateEventBookingUseCase {
       anticipo,
     );
 
-    return reserva;
+    return { ...reserva, anticipo: Number(anticipo) };
   }
 
   private async notifyBookingConfirmation(

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
+import { attachImagenes } from 'src/infrastructure/storage/imagenes.helper';
 import {
   HotelRoomRepository,
   CreateBookingInput,
@@ -47,14 +48,19 @@ export class HotelRepositoryImpl implements HotelRoomRepository {
       );
     }
 
-    return rooms;
+    return attachImagenes(this.prisma, 'habitacion', rooms);
   }
 
   async findById(id: bigint): Promise<HabitacionWithType | null> {
-    return this.prisma.habitaciones.findUnique({
+    const room = await this.prisma.habitaciones.findUnique({
       where: { id },
       include: { tipos_habitacion: true },
     });
+    if (!room) return null;
+    const [withGallery] = await attachImagenes(this.prisma, 'habitacion', [
+      room,
+    ]);
+    return withGallery;
   }
 
   async findBookingsByUser(
@@ -79,7 +85,7 @@ export class HotelRepositoryImpl implements HotelRoomRepository {
         fecha_salida: data.fecha_salida,
         cantidad_huespedes: data.cantidad_huespedes,
         total: data.total,
-        estado: 'CONFIRMADA',
+        estado: 'PENDIENTE',
         observaciones: data.observaciones,
       },
       include: {

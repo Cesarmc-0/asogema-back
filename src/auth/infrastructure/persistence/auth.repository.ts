@@ -19,6 +19,15 @@ export class AuthRepositoryImpl implements AuthRepository {
     });
   }
 
+  async findByDocument(
+    numero_documento: string,
+  ): Promise<UsuarioWithRoles | null> {
+    return this.prisma.usuarios.findUnique({
+      where: { numero_documento },
+      include: { roles: true },
+    });
+  }
+
   async create(data: CreateUsuarioInput): Promise<usuarios> {
     return this.prisma.usuarios.create({ data });
   }

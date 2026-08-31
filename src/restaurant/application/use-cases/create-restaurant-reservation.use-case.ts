@@ -7,6 +7,7 @@ import {
 import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 import { EmailSender } from 'src/infrastructure/mail/domain/email-sender.interface';
 import { RestaurantRepository } from 'src/restaurant/domain/repositories/restaurant-repository.interface';
+import { CreatePaymentUseCase } from 'src/payments/application/use-cases/create-payment.use-case';
 
 @Injectable()
 export class CreateRestaurantReservationUseCase {
@@ -16,6 +17,7 @@ export class CreateRestaurantReservationUseCase {
     private readonly restaurantRepository: RestaurantRepository,
     private readonly prisma: PrismaService,
     private readonly emailSender: EmailSender,
+    private readonly createPaymentUseCase: CreatePaymentUseCase,
   ) {}
 
   async execute(
@@ -81,7 +83,24 @@ export class CreateRestaurantReservationUseCase {
       dto.cantidad_personas,
     );
 
-    return reserva;
+    const MONTO_FIJO = 25000;
+    let paymentInfo: Record<string, unknown> | null = null;
+    try {
+      paymentInfo = await this.createPaymentUseCase.execute(usuario_id, {
+        reserva_id: reserva.id,
+        monto: MONTO_FIJO,
+        metodo_pago: 'WOMPI',
+        tipo_reserva: 'RESTAURANTE',
+      });
+    } catch (error) {
+      this.logger.error(
+        `No se pudo crear el pago para reserva de restaurante ${reserva.id}: ${
+          error instanceof Error ? error.message : 'error desconocido'
+        }`,
+      );
+    }
+
+    return { ...reserva, payment: paymentInfo };
   }
 
   private async notifyReservationConfirmation(

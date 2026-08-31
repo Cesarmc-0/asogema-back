@@ -25,6 +25,8 @@ export interface PurchaseReceiptPayload {
   nombre: string;
   correo: string;
   factura_id: string | number | bigint;
+  referencia: string;
+  descripcion: string;
   fecha: string;
   total: string;
 }
