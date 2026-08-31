@@ -67,6 +67,7 @@ interface CalendarEvent {
   location: string;
   category: string;
   color: string;
+  type?: 'check-in' | 'occupied' | 'check-out';
 }
 
 @ApiTags('admin')
@@ -225,6 +226,14 @@ export class AdminController {
   @Post('room-types')
   @ApiOperation({ summary: 'Crear nuevo tipo de habitación' })
   async createRoomType(@Body() body: CreateRoomTypeDto) {
+    const existing = await this.prisma.tipos_habitacion.findFirst({
+      where: { nombre: { equals: body.nombre.trim(), mode: 'insensitive' } },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Ya existe un tipo de habitación llamado "${body.nombre}"`,
+      );
+    }
     return this.prisma.tipos_habitacion.create({
       data: {
         nombre: body.nombre,
@@ -242,7 +251,20 @@ export class AdminController {
     @Body() body: UpdateRoomTypeDto,
   ) {
     const data: Prisma.tipos_habitacionUpdateInput = {};
-    if (body.nombre !== undefined) data.nombre = body.nombre;
+    if (body.nombre !== undefined) {
+      const existing = await this.prisma.tipos_habitacion.findFirst({
+        where: {
+          id: { not: BigInt(id) },
+          nombre: { equals: body.nombre.trim(), mode: 'insensitive' },
+        },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Ya existe un tipo de habitación llamado "${body.nombre}"`,
+        );
+      }
+      data.nombre = body.nombre;
+    }
     if (body.capacidad !== undefined) data.capacidad = body.capacidad;
     if (body.precio_noche !== undefined) data.precio_noche = body.precio_noche;
     if (body.imagen_url !== undefined) data.imagen_url = body.imagen_url;
@@ -292,6 +314,14 @@ export class AdminController {
   @Post('rooms')
   @ApiOperation({ summary: 'Crear nueva habitación individual' })
   async createRoom(@Body() body: CreateRoomDto) {
+    const existing = await this.prisma.habitaciones.findFirst({
+      where: { numero: { equals: body.numero.trim(), mode: 'insensitive' } },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Ya existe una habitación con el número "${body.numero}"`,
+      );
+    }
     return this.prisma.habitaciones.create({
       data: {
         numero: body.numero,
@@ -306,7 +336,20 @@ export class AdminController {
   @ApiOperation({ summary: 'Actualizar habitación individual' })
   async updateRoom(@Param('id') id: number, @Body() body: UpdateRoomDto) {
     const data: Prisma.habitacionesUncheckedUpdateInput = {};
-    if (body.numero !== undefined) data.numero = body.numero;
+    if (body.numero !== undefined) {
+      const existing = await this.prisma.habitaciones.findFirst({
+        where: {
+          id: { not: BigInt(id) },
+          numero: { equals: body.numero.trim(), mode: 'insensitive' },
+        },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Ya existe una habitación con el número "${body.numero}"`,
+        );
+      }
+      data.numero = body.numero;
+    }
     if (body.piso !== undefined) data.piso = body.piso;
     if (body.tipo_id !== undefined)
       data.tipo_habitacion_id = BigInt(body.tipo_id);
@@ -340,8 +383,16 @@ export class AdminController {
   @Post('menu/categories')
   @ApiOperation({ summary: 'Crear nueva categoría de menú' })
   async createMenuCategory(@Body() body: CreateMenuCategoryDto) {
+    const existing = await this.prisma.categorias_menu.findFirst({
+      where: { nombre: { equals: body.nombre.trim(), mode: 'insensitive' } },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Ya existe una categoría de menú llamada "${body.nombre}"`,
+      );
+    }
     return this.prisma.categorias_menu.create({
-      data: { nombre: body.nombre },
+      data: { nombre: body.nombre.trim() },
     });
   }
 
@@ -351,9 +402,24 @@ export class AdminController {
     @Param('id') id: number,
     @Body() body: UpdateMenuCategoryDto,
   ) {
+    if (body.nombre !== undefined) {
+      const existing = await this.prisma.categorias_menu.findFirst({
+        where: {
+          id: { not: BigInt(id) },
+          nombre: { equals: body.nombre.trim(), mode: 'insensitive' },
+        },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Ya existe una categoría de menú llamada "${body.nombre}"`,
+        );
+      }
+    }
     return this.prisma.categorias_menu.update({
       where: { id: BigInt(id) },
-      data: { nombre: body.nombre },
+      data: {
+        nombre: body.nombre !== undefined ? body.nombre.trim() : undefined,
+      },
     });
   }
 
@@ -384,9 +450,17 @@ export class AdminController {
   @Post('menu/products')
   @ApiOperation({ summary: 'Crear nuevo producto de menú' })
   async createMenuProduct(@Body() body: CreateProductDto) {
+    const existing = await this.prisma.productos_menu.findFirst({
+      where: { nombre: { equals: body.nombre.trim(), mode: 'insensitive' } },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Ya existe un producto de menú llamado "${body.nombre}"`,
+      );
+    }
     return this.prisma.productos_menu.create({
       data: {
-        nombre: body.nombre,
+        nombre: body.nombre.trim(),
         categoria_id: BigInt(body.categoria_id),
         precio: body.precio,
         stock: body.stock,
@@ -403,7 +477,20 @@ export class AdminController {
     @Body() body: UpdateProductDto,
   ) {
     const data: Prisma.productos_menuUncheckedUpdateInput = {};
-    if (body.nombre !== undefined) data.nombre = body.nombre;
+    if (body.nombre !== undefined) {
+      const existing = await this.prisma.productos_menu.findFirst({
+        where: {
+          id: { not: BigInt(id) },
+          nombre: { equals: body.nombre.trim(), mode: 'insensitive' },
+        },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Ya existe un producto de menú llamado "${body.nombre}"`,
+        );
+      }
+      data.nombre = body.nombre.trim();
+    }
     if (body.precio !== undefined) data.precio = body.precio;
     if (body.stock !== undefined) data.stock = body.stock;
     if (body.descripcion) data.descripcion = body.descripcion;
@@ -437,9 +524,17 @@ export class AdminController {
   @Post('events/salons')
   @ApiOperation({ summary: 'Crear nuevo salón de eventos' })
   async createEventSalon(@Body() body: CreateSalonDto) {
+    const existing = await this.prisma.salones.findFirst({
+      where: { nombre: { equals: body.nombre.trim(), mode: 'insensitive' } },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Ya existe un salón de eventos llamado "${body.nombre}"`,
+      );
+    }
     return this.prisma.salones.create({
       data: {
-        nombre: body.nombre,
+        nombre: body.nombre.trim(),
         capacidad: body.capacidad,
         precio_base: body.precio_base,
         imagen_url: body.imagen_url,
@@ -455,7 +550,20 @@ export class AdminController {
     @Body() body: UpdateSalonDto,
   ) {
     const data: Prisma.salonesUpdateInput = {};
-    if (body.nombre !== undefined) data.nombre = body.nombre;
+    if (body.nombre !== undefined) {
+      const existing = await this.prisma.salones.findFirst({
+        where: {
+          id: { not: BigInt(id) },
+          nombre: { equals: body.nombre.trim(), mode: 'insensitive' },
+        },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Ya existe un salón de eventos llamado "${body.nombre}"`,
+        );
+      }
+      data.nombre = body.nombre.trim();
+    }
     if (body.capacidad !== undefined) data.capacidad = body.capacidad;
     if (body.precio_base !== undefined) data.precio_base = body.precio_base;
     if (body.imagen_url !== undefined) data.imagen_url = body.imagen_url;
@@ -1048,16 +1156,69 @@ export class AdminController {
 
     const events: CalendarEvent[] = [];
 
+    type HotelDayType = NonNullable<CalendarEvent['type']>;
+    const hotelDayLabels: Record<HotelDayType, (n: string) => string> = {
+      'check-in': (n) => `Check-in: ${n}`,
+      occupied: (n) => `Habitación ocupada: ${n}`,
+      'check-out': (n) => `Check-out: ${n}`,
+    };
+
     hoteles.forEach((r) => {
-      events.push({
-        id: Number(r.id),
-        title: `Hotel: ${r.usuarios.nombre} ${r.usuarios.apellido}`,
-        date: this.fmtDate(r.fecha_entrada),
-        time: '—',
-        location: 'Hotel',
-        category: 'reservas',
-        color: '#fdcb6e',
-      });
+      const nombre = `${r.usuarios.nombre} ${r.usuarios.apellido}`;
+      const entrada = this.fmtDate(r.fecha_entrada);
+      const salida = this.fmtDate(r.fecha_salida);
+
+      const pushDay = (dateStr: string, type: HotelDayType) => {
+        events.push({
+          id: Number(r.id),
+          title: hotelDayLabels[type](nombre),
+          date: dateStr,
+          time: '—',
+          location: 'Hotel',
+          category: 'reservas',
+          color: '#fdcb6e',
+          type,
+        });
+      };
+
+      if (!entrada) return;
+      if (!salida) {
+        pushDay(entrada, 'check-in');
+        return;
+      }
+
+      const [ey, em, ed] = entrada.split('-').map(Number);
+      const [sy, sm, sd] = salida.split('-').map(Number);
+      const start = new Date(ey, em - 1, ed);
+      const end = new Date(sy, sm - 1, sd);
+
+      if (end < start) {
+        pushDay(entrada, 'check-in');
+        return;
+      }
+
+      if (entrada === salida) {
+        pushDay(entrada, 'check-in');
+        pushDay(salida, 'check-out');
+        return;
+      }
+
+      const cur = new Date(start);
+      cur.setDate(cur.getDate() - 1);
+      while (cur < end) {
+        cur.setDate(cur.getDate() + 1);
+        const y = cur.getFullYear();
+        const m = String(cur.getMonth() + 1).padStart(2, '0');
+        const d = String(cur.getDate()).padStart(2, '0');
+        const iso = `${y}-${m}-${d}`;
+        const type: HotelDayType =
+          iso === entrada
+            ? 'check-in'
+            : iso === salida
+              ? 'check-out'
+              : 'occupied';
+        pushDay(iso, type);
+      }
     });
 
     restaurantes.forEach((r) => {
@@ -1417,9 +1578,7 @@ export class AdminController {
 
       if (duplicate) {
         const field =
-          duplicate.correo === body.correo
-            ? 'correo'
-            : 'número de documento';
+          duplicate.correo === body.correo ? 'correo' : 'número de documento';
         throw new ConflictException(`El ${field} ya está registrado`);
       }
     }
