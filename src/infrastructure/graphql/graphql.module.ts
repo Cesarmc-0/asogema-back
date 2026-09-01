@@ -9,6 +9,8 @@ import { MisReservasUseCase } from 'src/infrastructure/graphql/use-cases/mis-res
 import { PaymentsResolver } from 'src/infrastructure/graphql/resolvers/payments.resolver';
 import { WalletResolver } from 'src/infrastructure/graphql/resolvers/wallet.resolver';
 import { ReservasResolver } from 'src/infrastructure/graphql/resolvers/reservas.resolver';
+import { ComandaResolver } from './resolvers/comanda.resolver';
+import { ListarPedidosComandaUsecase } from 'src/restaurant/application/use-cases/listar-pedidos-comanda.use-case';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { ReservasResolver } from 'src/infrastructure/graphql/resolvers/reservas.
     PaymentsResolver,
     WalletResolver,
     ReservasResolver,
+    ListarPedidosComandaUsecase,
+    ComandaResolver,
   ],
 })
 export class GraphqlModule {}
