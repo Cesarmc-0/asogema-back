@@ -27,7 +27,14 @@ function facturaBase(overrides = {}) {
     tipo_reserva: 'RECARGA',
     created_at: new Date(Date.now() - 11 * 60 * 1000),
     pagos: [
-      { id: 200n, metodo_pago: 'DAVIPLATA', valor: new Decimal(10000), referencia: 'PAGO-200', estado: 'PENDIENTE', fecha_pago: null },
+      {
+        id: 200n,
+        metodo_pago: 'DAVIPLATA',
+        valor: new Decimal(10000),
+        referencia: 'PAGO-200',
+        estado: 'PENDIENTE',
+        fecha_pago: null,
+      },
     ],
     ...overrides,
   };
@@ -73,7 +80,9 @@ describe('GetPaymentStatusUseCase', () => {
   });
 
   it('factura de otro usuario: lanza NotFoundException', async () => {
-    mockPaymentRepo.findFacturaById.mockResolvedValue(facturaBase({ usuario_id: 99n }));
+    mockPaymentRepo.findFacturaById.mockResolvedValue(
+      facturaBase({ usuario_id: 99n }),
+    );
 
     await expect(useCase.execute(100n, 10n)).rejects.toThrow(NotFoundException);
     expect(mockPaymentRepo.cancelarPagoCompleto).not.toHaveBeenCalled();

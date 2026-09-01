@@ -9,10 +9,10 @@ export class GetMenuUseCase {
 
   async execute(): Promise<CategoriaConProductos[]> {
     const categorias = await this.prisma.categorias_menu.findMany({
-      where: { estado: true },
+      where: { estado: true, activo: true },
       include: {
         productos_menu: {
-          where: { estado: true },
+          where: { estado: true, activo: true },
           orderBy: { nombre: 'asc' },
         },
       },

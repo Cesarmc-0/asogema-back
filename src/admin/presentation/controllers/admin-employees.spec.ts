@@ -68,7 +68,7 @@ describe('AdminController - Empleados', () => {
       expect(result.nombre).toBe('Juan Pérez');
     });
 
-   it('lanza 409 si el correo ya está registrado', async () => {
+    it('lanza 409 si el correo ya está registrado', async () => {
       prisma.usuarios.findFirst.mockResolvedValue({
         id: 5n,
         correo: 'juan@asogema.com',

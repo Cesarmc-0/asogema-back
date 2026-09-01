@@ -217,8 +217,10 @@ export class AdminController {
   // ======================
   @Get('room-types')
   @ApiOperation({ summary: 'Listar todos los tipos de habitación' })
-  async getRoomTypes() {
+  @ApiQuery({ name: 'incluir_inactivos', required: false, type: Boolean })
+  async getRoomTypes(@Query('incluir_inactivos') incluirInactivos?: string) {
     return this.prisma.tipos_habitacion.findMany({
+      where: incluirInactivos === 'true' ? {} : { activo: true },
       orderBy: { nombre: 'asc' },
     });
   }
@@ -275,10 +277,20 @@ export class AdminController {
   }
 
   @Delete('room-types/:id')
-  @ApiOperation({ summary: 'Eliminar tipo de habitación' })
+  @ApiOperation({ summary: 'Eliminar tipo de habitación (soft delete)' })
   async deleteRoomType(@Param('id') id: number) {
-    return this.prisma.tipos_habitacion.delete({
+    return this.prisma.tipos_habitacion.update({
       where: { id: BigInt(id) },
+      data: { activo: false },
+    });
+  }
+
+  @Patch('room-types/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivar tipo de habitación' })
+  async reactivateRoomType(@Param('id') id: number) {
+    return this.prisma.tipos_habitacion.update({
+      where: { id: BigInt(id) },
+      data: { activo: true },
     });
   }
 
@@ -287,14 +299,19 @@ export class AdminController {
   // ======================
   @Get('rooms')
   @ApiOperation({ summary: 'Listar habitaciones con filtros opcionales' })
+  @ApiQuery({ name: 'tipo_id', required: false, type: Number })
+  @ApiQuery({ name: 'piso', required: false, type: Number })
+  @ApiQuery({ name: 'incluir_inactivos', required: false, type: Boolean })
   async getRooms(
     @Query('tipo_id') tipo_id?: number,
     @Query('piso') piso?: number,
+    @Query('incluir_inactivos') incluirInactivos?: string,
   ) {
     const rooms = await this.prisma.habitaciones.findMany({
       where: {
         ...(tipo_id && { tipo_habitacion_id: BigInt(tipo_id) }),
         ...(piso !== undefined && { piso }),
+        ...(incluirInactivos === 'true' ? {} : { activo: true }),
       },
       include: {
         tipos_habitacion: {
@@ -362,10 +379,20 @@ export class AdminController {
   }
 
   @Delete('rooms/:id')
-  @ApiOperation({ summary: 'Eliminar habitación individual' })
+  @ApiOperation({ summary: 'Eliminar habitación individual (soft delete)' })
   async deleteRoom(@Param('id') id: number) {
-    return this.prisma.habitaciones.delete({
+    return this.prisma.habitaciones.update({
       where: { id: BigInt(id) },
+      data: { activo: false },
+    });
+  }
+
+  @Patch('rooms/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivar habitación individual' })
+  async reactivateRoom(@Param('id') id: number) {
+    return this.prisma.habitaciones.update({
+      where: { id: BigInt(id) },
+      data: { activo: true },
     });
   }
 
@@ -374,8 +401,12 @@ export class AdminController {
   // ======================
   @Get('menu/categories')
   @ApiOperation({ summary: 'Listar categorías del menú' })
-  async getMenuCategories() {
+  @ApiQuery({ name: 'incluir_inactivos', required: false, type: Boolean })
+  async getMenuCategories(
+    @Query('incluir_inactivos') incluirInactivos?: string,
+  ) {
     return this.prisma.categorias_menu.findMany({
+      where: incluirInactivos === 'true' ? {} : { activo: true },
       orderBy: { nombre: 'asc' },
     });
   }
@@ -424,10 +455,20 @@ export class AdminController {
   }
 
   @Delete('menu/categories/:id')
-  @ApiOperation({ summary: 'Eliminar categoría de menú' })
+  @ApiOperation({ summary: 'Eliminar categoría de menú (soft delete)' })
   async deleteMenuCategory(@Param('id') id: number) {
-    return this.prisma.categorias_menu.delete({
+    return this.prisma.categorias_menu.update({
       where: { id: BigInt(id) },
+      data: { activo: false },
+    });
+  }
+
+  @Patch('menu/categories/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivar categoría de menú' })
+  async reactivateMenuCategory(@Param('id') id: number) {
+    return this.prisma.categorias_menu.update({
+      where: { id: BigInt(id) },
+      data: { activo: true },
     });
   }
 
@@ -438,9 +479,17 @@ export class AdminController {
   @ApiOperation({
     summary: 'Listar productos del menú con filtro por categoría',
   })
-  async getMenuProducts(@Query('categoria_id') categoria_id?: number) {
+  @ApiQuery({ name: 'categoria_id', required: false, type: Number })
+  @ApiQuery({ name: 'incluir_inactivos', required: false, type: Boolean })
+  async getMenuProducts(
+    @Query('categoria_id') categoria_id?: number,
+    @Query('incluir_inactivos') incluirInactivos?: string,
+  ) {
     const products = await this.prisma.productos_menu.findMany({
-      where: categoria_id ? { categoria_id: BigInt(categoria_id) } : {},
+      where: {
+        ...(categoria_id ? { categoria_id: BigInt(categoria_id) } : {}),
+        ...(incluirInactivos === 'true' ? {} : { activo: true }),
+      },
       include: { categorias_menu: { select: { nombre: true } } },
       orderBy: { nombre: 'asc' },
     });
@@ -502,10 +551,20 @@ export class AdminController {
   }
 
   @Delete('menu/products/:id')
-  @ApiOperation({ summary: 'Eliminar producto de menú' })
+  @ApiOperation({ summary: 'Eliminar producto de menú (soft delete)' })
   async deleteMenuProduct(@Param('id') id: number) {
-    return this.prisma.productos_menu.delete({
+    return this.prisma.productos_menu.update({
       where: { id: BigInt(id) },
+      data: { activo: false },
+    });
+  }
+
+  @Patch('menu/products/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivar producto de menú' })
+  async reactivateMenuProduct(@Param('id') id: number) {
+    return this.prisma.productos_menu.update({
+      where: { id: BigInt(id) },
+      data: { activo: true },
     });
   }
 
@@ -597,9 +656,11 @@ export class AdminController {
   @ApiOperation({ summary: 'Listar galería de imágenes de un ítem' })
   @ApiQuery({ name: 'entidad', required: true, enum: IMAGEN_ENTIDADES })
   @ApiQuery({ name: 'entidad_id', required: true, type: Number })
+  @ApiQuery({ name: 'incluir_inactivos', required: false, type: Boolean })
   async getImagenes(
     @Query('entidad') entidad: string,
     @Query('entidad_id') entidadId: string,
+    @Query('incluir_inactivos') incluirInactivos?: string,
   ) {
     if (!entidad || !entidadId) {
       throw new BadRequestException('entidad y entidad_id son obligatorios');
@@ -610,8 +671,18 @@ export class AdminController {
       this.parseImagenId(entidadId),
     );
     const rows = await this.prisma.imagenes.findMany({
-      where: { entidad: valid, entidad_id: this.parseImagenId(entidadId) },
-      select: { id: true, url: true, es_principal: true, orden: true },
+      where: {
+        entidad: valid,
+        entidad_id: this.parseImagenId(entidadId),
+        ...(incluirInactivos === 'true' ? {} : { activo: true }),
+      },
+      select: {
+        id: true,
+        url: true,
+        es_principal: true,
+        orden: true,
+        activo: true,
+      },
       orderBy: [{ orden: 'asc' }, { id: 'asc' }],
     });
     return rows.map(toImagenDto);
@@ -630,7 +701,7 @@ export class AdminController {
       entidadId,
     );
     const existentes = await this.prisma.imagenes.count({
-      where: { entidad, entidad_id: entidadId },
+      where: { entidad, entidad_id: entidadId, activo: true },
     });
     const esPrincipal = body.es_principal ?? existentes === 0;
 
@@ -731,6 +802,7 @@ export class AdminController {
           entidad: current.entidad,
           entidad_id: current.entidad_id,
           es_principal: true,
+          activo: true,
         },
         orderBy: [{ orden: 'asc' }, { id: 'asc' }],
       });
@@ -747,6 +819,7 @@ export class AdminController {
             entidad: current.entidad,
             entidad_id: current.entidad_id,
             NOT: { id: imagenId },
+            activo: true,
           },
           orderBy: [{ orden: 'asc' }, { id: 'asc' }],
         });
@@ -780,7 +853,7 @@ export class AdminController {
   @Delete('imagenes/:id')
   @ApiOperation({
     summary:
-      'Eliminar imagen de la galería (si era la principal, se reasigna la portada)',
+      'Eliminar imagen de la galería (soft delete; si era la principal, se reasigna la portada)',
   })
   async deleteImagen(@Param('id') id: string) {
     const imagenId = this.parseImagenId(id);
@@ -789,13 +862,17 @@ export class AdminController {
     });
     if (!current) throw new NotFoundException('Imagen no encontrada');
 
-    await this.prisma.imagenes.delete({ where: { id: imagenId } });
+    await this.prisma.imagenes.update({
+      where: { id: imagenId },
+      data: { activo: false },
+    });
 
     if (current.es_principal) {
       const fallback = await this.prisma.imagenes.findFirst({
         where: {
           entidad: current.entidad,
           entidad_id: current.entidad_id,
+          activo: true,
         },
         orderBy: [{ orden: 'asc' }, { id: 'asc' }],
       });
@@ -823,6 +900,32 @@ export class AdminController {
     }
 
     return { deleted: true, id: imagenId.toString() };
+  }
+
+  @Patch('imagenes/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivar imagen de la galería' })
+  async reactivateImagen(@Param('id') id: string) {
+    const imagenId = this.parseImagenId(id);
+    const current = await this.prisma.imagenes.findUnique({
+      where: { id: imagenId },
+    });
+    if (!current) throw new NotFoundException('Imagen no encontrada');
+
+    const imagen = await this.prisma.imagenes.update({
+      where: { id: imagenId },
+      data: { activo: true },
+    });
+
+    if (imagen.es_principal) {
+      await syncImagenPrincipal(
+        this.prisma,
+        imagen.entidad,
+        imagen.entidad_id,
+        imagen.url,
+      );
+    }
+
+    return toImagenDto(imagen);
   }
 
   // ======================

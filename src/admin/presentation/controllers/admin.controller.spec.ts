@@ -8,18 +8,22 @@ function buildMocks() {
     tipos_habitacion: {
       findFirst: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
     habitaciones: {
       findFirst: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
     categorias_menu: {
       findFirst: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
     productos_menu: {
       findFirst: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
     salones: {
       findFirst: jest.fn(),
@@ -94,4 +98,55 @@ describe('AdminController - Validaciones de duplicados', () => {
       expect(prisma[model].create).toHaveBeenCalled();
     });
   });
+});
+
+describe('AdminController - Soft delete', () => {
+  let prisma: ReturnType<typeof buildMocks>;
+  let controller: AdminController;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma = buildMocks();
+    controller = new AdminController(prisma, FAKE_STORAGE);
+  });
+
+  it.each([
+    ['deleteRoomType', 'tipos_habitacion'],
+    ['deleteRoom', 'habitaciones'],
+    ['deleteMenuCategory', 'categorias_menu'],
+    ['deleteMenuProduct', 'productos_menu'],
+  ])(
+    '%s marca activo:false en vez de borrar el registro',
+    async (methodName, model) => {
+      prisma[model].update.mockResolvedValue({ id: 1n });
+
+      const result = await controller[methodName](1);
+
+      expect(prisma[model].update).toHaveBeenCalledWith({
+        where: { id: 1n },
+        data: { activo: false },
+      });
+      expect(result).toEqual({ id: 1n });
+    },
+  );
+
+  it.each([
+    ['reactivateRoomType', 'tipos_habitacion'],
+    ['reactivateRoom', 'habitaciones'],
+    ['reactivateMenuCategory', 'categorias_menu'],
+    ['reactivateMenuProduct', 'productos_menu'],
+  ])(
+    '%s marca activo:true para reactivar el registro',
+    async (methodName, model) => {
+      prisma[model].update.mockResolvedValue({ id: 1n });
+
+      const result = await controller[methodName](1);
+
+      expect(prisma[model].update).toHaveBeenCalledWith({
+        where: { id: 1n },
+        data: { activo: true },
+      });
+      expect(result).toEqual({ id: 1n });
+    },
+  );
 });
