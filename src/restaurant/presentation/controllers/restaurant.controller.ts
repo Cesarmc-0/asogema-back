@@ -1,11 +1,24 @@
-import { Controller, Get, Post, Query, Body, UseGuards, Param, Patch, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Query,
+  Body,
+  UseGuards,
+  Param,
+  Patch,
+  BadRequestException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { GetMenuUseCase } from 'src/restaurant/application/use-cases/get-menu.use-case';
 import { GetAvailableTablesUseCase } from 'src/restaurant/application/use-cases/get-available-tables.use-case';
 import { CreateRestaurantReservationUseCase } from 'src/restaurant/application/use-cases/create-restaurant-reservation.use-case';
 import { CreatePedidoOnlineUseCase } from 'src/restaurant/application/use-cases/create-pedido-online.use-case';
 import { GetPedidoDetalleUseCase } from 'src/restaurant/application/use-cases/get-pedido-detalle.use-case';
-import { ActualizarEstadoPedidoUseCase, ESTADOS_PEDIDO } from 'src/restaurant/application/use-cases/actualizar-estado-pedido.use-case';
+import {
+  ActualizarEstadoPedidoUseCase,
+  ESTADOS_PEDIDO,
+} from 'src/restaurant/application/use-cases/actualizar-estado-pedido.use-case';
 import { GetTablesDto } from '../dto/get-tables.dto';
 import { CreateReservationDto } from '../dto/create-reservation.dto';
 import { CreatePedidoOnlineDto } from '../dto/create-pedido-online.dto';
@@ -94,7 +107,9 @@ export class RestaurantController {
   }
 
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Cambiar estado de un pedido (Mesero/Administrador)' })
+  @ApiOperation({
+    summary: 'Cambiar estado de un pedido (Mesero/Administrador)',
+  })
   @UseGuards(AuthGuard('jwt'))
   @Roles('Mesero', 'Administrador')
   @Patch('pedidos/:id/estado')

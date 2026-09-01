@@ -18,7 +18,8 @@ export class HotelRepositoryImpl implements HotelRoomRepository {
   ): Promise<HabitacionWithType[]> {
     const where: any = {
       estado: true,
-      tipos_habitacion: { estado: true },
+      activo: true,
+      tipos_habitacion: { estado: true, activo: true },
     };
 
     if (query.tipo_habitacion_id) {
@@ -30,6 +31,7 @@ export class HotelRepositoryImpl implements HotelRoomRepository {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       where.tipos_habitacion = {
         estado: true,
+        activo: true,
         capacidad: { gte: query.capacidad_min },
       };
     }
@@ -52,8 +54,8 @@ export class HotelRepositoryImpl implements HotelRoomRepository {
   }
 
   async findById(id: bigint): Promise<HabitacionWithType | null> {
-    const room = await this.prisma.habitaciones.findUnique({
-      where: { id },
+    const room = await this.prisma.habitaciones.findFirst({
+      where: { id, activo: true },
       include: { tipos_habitacion: true },
     });
     if (!room) return null;

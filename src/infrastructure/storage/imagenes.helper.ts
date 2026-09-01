@@ -74,13 +74,14 @@ export type { ImagenRow };
  * interna de la tabla polimórfica en respuestas públicas.
  */
 export function toImagenDto(
-  img: Pick<ImagenRow, 'id' | 'url' | 'es_principal' | 'orden'>,
+  img: Pick<ImagenRow, 'id' | 'url' | 'es_principal' | 'orden' | 'activo'>,
 ) {
   return {
     id: img.id,
     url: img.url,
     es_principal: img.es_principal,
     orden: img.orden,
+    activo: img.activo,
   };
 }
 
@@ -99,13 +100,18 @@ export async function attachImagenes<T extends { id: bigint }>(
   if (items.length === 0) return items.map((it) => ({ ...it, imagenes: [] }));
 
   const rows = await prisma.imagenes.findMany({
-    where: { entidad, entidad_id: { in: items.map((it) => it.id) } },
+    where: {
+      entidad,
+      entidad_id: { in: items.map((it) => it.id) },
+      activo: true,
+    },
     select: {
       id: true,
       entidad_id: true,
       url: true,
       es_principal: true,
       orden: true,
+      activo: true,
     },
     orderBy: [{ orden: 'asc' }, { id: 'asc' }],
   });
