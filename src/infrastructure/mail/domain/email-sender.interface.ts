@@ -31,10 +31,17 @@ export interface PurchaseReceiptPayload {
   total: string;
 }
 
+export interface PasswordRecoveryPayload {
+  nombre: string;
+  correo: string;
+  codigo: string;
+}
+
 export type EmailJobData =
   | ({ type: 'welcome-verification' } & WelcomeVerificationPayload)
   | ({ type: BookingType } & BookingPayload)
-  | ({ type: 'purchase-receipt' } & PurchaseReceiptPayload);
+  | ({ type: 'purchase-receipt' } & PurchaseReceiptPayload)
+  | ({ type: 'password-recovery' } & PasswordRecoveryPayload);
 
 export abstract class EmailSender {
   abstract sendWelcomeVerification(
@@ -45,6 +52,9 @@ export abstract class EmailSender {
     payload: BookingPayload,
   ): Promise<void>;
   abstract sendPurchaseReceipt(payload: PurchaseReceiptPayload): Promise<void>;
+  abstract sendPasswordRecovery(
+    payload: PasswordRecoveryPayload,
+  ): Promise<void>;
 }
 
 export type EmailJob = Job<EmailJobData>;

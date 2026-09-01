@@ -39,6 +39,9 @@ export class EmailQueueProcessor extends WorkerHost {
       case 'purchase-receipt':
         await this.mailer.sendPurchaseReceipt(data);
         break;
+      case 'password-recovery':
+        await this.mailer.sendPasswordRecovery(data);
+        break;
     }
   }
 }

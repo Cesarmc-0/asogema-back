@@ -9,6 +9,7 @@ import {
   WelcomeVerificationPayload,
   BookingPayload,
   PurchaseReceiptPayload,
+  PasswordRecoveryPayload,
 } from '../domain/email-sender.interface';
 
 const TEMPLATE_NAMES: Record<string, string> = {
@@ -17,6 +18,7 @@ const TEMPLATE_NAMES: Record<string, string> = {
   'event-booking': 'event-booking',
   'restaurant-reservation': 'restaurant-reservation',
   'purchase-receipt': 'purchase-receipt',
+  'password-recovery': 'password-recovery',
 };
 
 const SUBJECTS: Record<string, string> = {
@@ -25,6 +27,7 @@ const SUBJECTS: Record<string, string> = {
   'event-booking': 'Confirmación de reserva de salón - Asogema',
   'restaurant-reservation': 'Confirmación de reserva de mesa - Asogema',
   'purchase-receipt': 'Recibo de compra - Asogema',
+  'password-recovery': 'Recuperación de contraseña - Asogema',
 };
 
 @Injectable()
@@ -64,6 +67,10 @@ export class NodemailerMailer extends EmailSender {
 
   async sendPurchaseReceipt(payload: PurchaseReceiptPayload): Promise<void> {
     await this.send('purchase-receipt', payload);
+  }
+
+  async sendPasswordRecovery(payload: PasswordRecoveryPayload): Promise<void> {
+    await this.send('password-recovery', payload);
   }
 
   private async send(type: string, payload: object): Promise<void> {
