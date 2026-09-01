@@ -12,9 +12,12 @@ import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-c
 import { LogoutUseCase } from './application/use-cases/logout.use-case';
 import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-case';
 import { ResendCodeUseCase } from './application/use-cases/resend-code.use-case';
+import { ForgotPasswordUseCase } from './application/use-cases/forgot-password.use-case';
+import { ResetPasswordUseCase } from './application/use-cases/reset-password.use-case';
 import { CreateAdminService } from './application/use-cases/create-admin.use-case';
 import { TokenService } from './application/services/token.service';
 import { EmailVerificationService } from './application/services/email-verification.service';
+import { PasswordRecoveryService } from './application/services/password-recovery.service';
 import { AuthRepository } from './domain/repositories/auth.repository.interface';
 import { RefreshTokenRepository } from './domain/repositories/refresh-token.repository.interface';
 import { AuthRepositoryImpl } from './infrastructure/persistence/auth.repository';
@@ -43,9 +46,12 @@ import { RolesGuard } from './infrastructure/guards/roles.guard';
     LogoutUseCase,
     VerifyEmailUseCase,
     ResendCodeUseCase,
+    ForgotPasswordUseCase,
+    ResetPasswordUseCase,
     CreateAdminService,
     TokenService,
     EmailVerificationService,
+    PasswordRecoveryService,
     JwtStrategy,
     { provide: AuthRepository, useClass: AuthRepositoryImpl },
     {

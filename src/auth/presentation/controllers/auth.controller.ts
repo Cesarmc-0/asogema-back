@@ -14,6 +14,8 @@ import { RefreshTokenUseCase } from 'src/auth/application/use-cases/refresh-toke
 import { LogoutUseCase } from 'src/auth/application/use-cases/logout.use-case';
 import { VerifyEmailUseCase } from 'src/auth/application/use-cases/verify-email.use-case';
 import { ResendCodeUseCase } from 'src/auth/application/use-cases/resend-code.use-case';
+import { ForgotPasswordUseCase } from 'src/auth/application/use-cases/forgot-password.use-case';
+import { ResetPasswordUseCase } from 'src/auth/application/use-cases/reset-password.use-case';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
@@ -21,6 +23,8 @@ import { ChangePasswordDto } from '../dto/change-password.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { VerifyEmailDto } from '../dto/verify-email.dto';
 import { ResendCodeDto } from '../dto/resend-code.dto';
+import { ForgotPasswordDto } from '../dto/forgot-password.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { CurrentUser } from '../dto/decorators/current-user.decorator';
 import { Public } from '../dto/decorators/public.decorator';
 import type { AuthenticatedUser } from 'src/auth/domain/interfaces/authenticated-user.interface';
@@ -37,6 +41,8 @@ export class AuthController {
     private readonly logoutUseCase: LogoutUseCase,
     private readonly verifyEmailUseCase: VerifyEmailUseCase,
     private readonly resendCodeUseCase: ResendCodeUseCase,
+    private readonly forgotPasswordUseCase: ForgotPasswordUseCase,
+    private readonly resetPasswordUseCase: ResetPasswordUseCase,
   ) {}
 
   @Public()
@@ -84,6 +90,28 @@ export class AuthController {
   @Post('resend-code')
   resendCode(@Body() dto: ResendCodeDto) {
     return this.resendCodeUseCase.execute(dto);
+  }
+
+  @Public()
+  @ApiOperation({
+    summary: 'Solicitar código de recuperación de contraseña',
+  })
+  @ApiResponse({ status: 201, description: 'Código de recuperación enviado' })
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.forgotPasswordUseCase.execute(dto);
+  }
+
+  @Public()
+  @ApiOperation({
+    summary: 'Restablecer contraseña con código de recuperación',
+  })
+  @ApiResponse({ status: 201, description: 'Contraseña restablecida' })
+  @ApiResponse({ status: 401, description: 'Código incorrecto o expirado' })
+  @ApiResponse({ status: 429, description: 'Demasiados intentos' })
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.resetPasswordUseCase.execute(dto);
   }
 
   @Public()
