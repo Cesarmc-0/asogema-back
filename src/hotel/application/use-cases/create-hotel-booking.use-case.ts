@@ -40,6 +40,10 @@ export class CreateHotelBookingUseCase {
       throw new ConflictException('La habitación no se encuentra disponible');
     }
 
+    if (habitacion.activo === false) {
+      throw new ConflictException('La habitación no se encuentra disponible');
+    }
+
     const available = await this.hotelRepository.isRoomAvailableForDates(
       dto.habitacion_id,
       dto.fecha_entrada,

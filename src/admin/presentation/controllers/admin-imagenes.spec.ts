@@ -41,6 +41,7 @@ describe('AdminController - Galería de imágenes', () => {
       url: 'https://s3/salon/a.jpg',
       es_principal: true,
       orden: 0,
+      activo: true,
     });
     prisma.salones.update.mockResolvedValue({ id: 1n });
 
@@ -127,19 +128,27 @@ describe('AdminController - Galería de imágenes', () => {
       es_principal: true,
       orden: 0,
     });
-    prisma.imagenes.delete.mockResolvedValue({});
+    prisma.imagenes.update.mockResolvedValue({});
     prisma.imagenes.findFirst.mockResolvedValue({
       id: 8n,
       url: 'https://s3/b.jpg',
       es_principal: false,
       orden: 1,
+      activo: true,
     });
-    prisma.imagenes.update.mockResolvedValue({});
     prisma.productos_menu.update.mockResolvedValue({ id: 2n });
 
     const result = await controller.deleteImagen('5');
 
-    expect(prisma.imagenes.delete).toHaveBeenCalledWith({ where: { id: 5n } });
+    expect(prisma.imagenes.update).toHaveBeenCalledWith({
+      where: { id: 5n },
+      data: { activo: false },
+    });
+    expect(prisma.imagenes.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ activo: true }),
+      }),
+    );
     expect(prisma.imagenes.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 8n },
@@ -162,15 +171,19 @@ describe('AdminController - Galería de imágenes', () => {
   it('GET lista la galería ordenada por orden', async () => {
     prisma.salones.findUnique.mockResolvedValue({ id: 1n });
     prisma.imagenes.findMany.mockResolvedValue([
-      { id: 1n, url: 'a.jpg', es_principal: true, orden: 0 },
-      { id: 2n, url: 'b.jpg', es_principal: false, orden: 1 },
+      { id: 1n, url: 'a.jpg', es_principal: true, orden: 0, activo: true },
+      { id: 2n, url: 'b.jpg', es_principal: false, orden: 1, activo: true },
     ]);
 
     const result = await controller.getImagenes('salon', '1');
 
     expect(prisma.imagenes.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { entidad: 'salon', entidad_id: 1n },
+        where: {
+          entidad: 'salon',
+          entidad_id: 1n,
+          activo: true,
+        },
         orderBy: [{ orden: 'asc' }, { id: 'asc' }],
       }),
     );
