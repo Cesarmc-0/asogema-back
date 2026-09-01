@@ -1,6 +1,5 @@
 import {
   Injectable,
-  ConflictException,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
@@ -10,6 +9,7 @@ import { EmailSender } from 'src/infrastructure/mail/domain/email-sender.interfa
 import { AuthRepository } from '../../domain/repositories/auth.repository.interface';
 import { RegisterDto } from '../../presentation/dto/register.dto';
 import { EmailVerificationService } from '../services/email-verification.service';
+import { Errors } from 'src/common/errors';
 
 @Injectable()
 export class RegisterUseCase {
@@ -24,8 +24,12 @@ export class RegisterUseCase {
 
   async execute(dto: RegisterDto) {
     const existing = await this.authRepository.findByEmail(dto.correo);
-    if (existing)
-      throw new ConflictException('El correo ya se encuentra registrado');
+    if (existing) throw Errors.auth.emailAlreadyExists();
+
+    const existingDoc = await this.authRepository.findByDocument(
+      dto.numero_documento,
+    );
+    if (existingDoc) throw Errors.auth.documentAlreadyExists();
 
     const role = await this.prisma.roles.findFirst({
       where: { nombre: 'Cliente', estado: true },
@@ -44,6 +48,9 @@ export class RegisterUseCase {
       telefono: dto.telefono,
       password_hash,
       rol_id: Number(role.id),
+      fecha_nacimiento: dto.fecha_nacimiento
+        ? new Date(dto.fecha_nacimiento)
+        : undefined,
     });
 
     await this.notifyRegistration(user);

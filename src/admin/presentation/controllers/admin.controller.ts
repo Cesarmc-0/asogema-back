@@ -8,11 +8,13 @@ import {
   Query,
   Body,
   BadRequestException,
+  ConflictException,
   NotFoundException,
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import * as bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
 import type { imagenes as ImagenRow } from '@prisma/client';
 import {
@@ -47,6 +49,8 @@ import { CreateSalonDto } from '../dto/create-salon.dto';
 import { UpdateSalonDto } from '../dto/update-salon.dto';
 import { CreateImagenDto } from '../dto/create-imagen.dto';
 import { UpdateImagenDto } from '../dto/update-imagen.dto';
+import { CreateEmployeeDto } from '../dto/create-employee.dto';
+import { UpdateEmployeeDto } from '../dto/update-employee.dto';
 import {
   IMAGEN_ENTIDADES,
   assertImagenEntity,
@@ -63,6 +67,7 @@ interface CalendarEvent {
   location: string;
   category: string;
   color: string;
+  type?: 'check-in' | 'occupied' | 'check-out';
 }
 
 @ApiTags('admin')
@@ -212,8 +217,10 @@ export class AdminController {
   // ======================
   @Get('room-types')
   @ApiOperation({ summary: 'Listar todos los tipos de habitación' })
-  async getRoomTypes() {
+  @ApiQuery({ name: 'incluir_inactivos', required: false, type: Boolean })
+  async getRoomTypes(@Query('incluir_inactivos') incluirInactivos?: string) {
     return this.prisma.tipos_habitacion.findMany({
+      where: incluirInactivos === 'true' ? {} : { activo: true },
       orderBy: { nombre: 'asc' },
     });
   }
@@ -221,6 +228,14 @@ export class AdminController {
   @Post('room-types')
   @ApiOperation({ summary: 'Crear nuevo tipo de habitación' })
   async createRoomType(@Body() body: CreateRoomTypeDto) {
+    const existing = await this.prisma.tipos_habitacion.findFirst({
+      where: { nombre: { equals: body.nombre.trim(), mode: 'insensitive' } },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Ya existe un tipo de habitación llamado "${body.nombre}"`,
+      );
+    }
     return this.prisma.tipos_habitacion.create({
       data: {
         nombre: body.nombre,
@@ -238,7 +253,20 @@ export class AdminController {
     @Body() body: UpdateRoomTypeDto,
   ) {
     const data: Prisma.tipos_habitacionUpdateInput = {};
-    if (body.nombre !== undefined) data.nombre = body.nombre;
+    if (body.nombre !== undefined) {
+      const existing = await this.prisma.tipos_habitacion.findFirst({
+        where: {
+          id: { not: BigInt(id) },
+          nombre: { equals: body.nombre.trim(), mode: 'insensitive' },
+        },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Ya existe un tipo de habitación llamado "${body.nombre}"`,
+        );
+      }
+      data.nombre = body.nombre;
+    }
     if (body.capacidad !== undefined) data.capacidad = body.capacidad;
     if (body.precio_noche !== undefined) data.precio_noche = body.precio_noche;
     if (body.imagen_url !== undefined) data.imagen_url = body.imagen_url;
@@ -249,10 +277,20 @@ export class AdminController {
   }
 
   @Delete('room-types/:id')
-  @ApiOperation({ summary: 'Eliminar tipo de habitación' })
+  @ApiOperation({ summary: 'Eliminar tipo de habitación (soft delete)' })
   async deleteRoomType(@Param('id') id: number) {
-    return this.prisma.tipos_habitacion.delete({
+    return this.prisma.tipos_habitacion.update({
       where: { id: BigInt(id) },
+      data: { activo: false },
+    });
+  }
+
+  @Patch('room-types/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivar tipo de habitación' })
+  async reactivateRoomType(@Param('id') id: number) {
+    return this.prisma.tipos_habitacion.update({
+      where: { id: BigInt(id) },
+      data: { activo: true },
     });
   }
 
@@ -261,14 +299,19 @@ export class AdminController {
   // ======================
   @Get('rooms')
   @ApiOperation({ summary: 'Listar habitaciones con filtros opcionales' })
+  @ApiQuery({ name: 'tipo_id', required: false, type: Number })
+  @ApiQuery({ name: 'piso', required: false, type: Number })
+  @ApiQuery({ name: 'incluir_inactivos', required: false, type: Boolean })
   async getRooms(
     @Query('tipo_id') tipo_id?: number,
     @Query('piso') piso?: number,
+    @Query('incluir_inactivos') incluirInactivos?: string,
   ) {
     const rooms = await this.prisma.habitaciones.findMany({
       where: {
         ...(tipo_id && { tipo_habitacion_id: BigInt(tipo_id) }),
         ...(piso !== undefined && { piso }),
+        ...(incluirInactivos === 'true' ? {} : { activo: true }),
       },
       include: {
         tipos_habitacion: {
@@ -288,6 +331,14 @@ export class AdminController {
   @Post('rooms')
   @ApiOperation({ summary: 'Crear nueva habitación individual' })
   async createRoom(@Body() body: CreateRoomDto) {
+    const existing = await this.prisma.habitaciones.findFirst({
+      where: { numero: { equals: body.numero.trim(), mode: 'insensitive' } },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Ya existe una habitación con el número "${body.numero}"`,
+      );
+    }
     return this.prisma.habitaciones.create({
       data: {
         numero: body.numero,
@@ -302,7 +353,20 @@ export class AdminController {
   @ApiOperation({ summary: 'Actualizar habitación individual' })
   async updateRoom(@Param('id') id: number, @Body() body: UpdateRoomDto) {
     const data: Prisma.habitacionesUncheckedUpdateInput = {};
-    if (body.numero !== undefined) data.numero = body.numero;
+    if (body.numero !== undefined) {
+      const existing = await this.prisma.habitaciones.findFirst({
+        where: {
+          id: { not: BigInt(id) },
+          numero: { equals: body.numero.trim(), mode: 'insensitive' },
+        },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Ya existe una habitación con el número "${body.numero}"`,
+        );
+      }
+      data.numero = body.numero;
+    }
     if (body.piso !== undefined) data.piso = body.piso;
     if (body.tipo_id !== undefined)
       data.tipo_habitacion_id = BigInt(body.tipo_id);
@@ -315,10 +379,20 @@ export class AdminController {
   }
 
   @Delete('rooms/:id')
-  @ApiOperation({ summary: 'Eliminar habitación individual' })
+  @ApiOperation({ summary: 'Eliminar habitación individual (soft delete)' })
   async deleteRoom(@Param('id') id: number) {
-    return this.prisma.habitaciones.delete({
+    return this.prisma.habitaciones.update({
       where: { id: BigInt(id) },
+      data: { activo: false },
+    });
+  }
+
+  @Patch('rooms/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivar habitación individual' })
+  async reactivateRoom(@Param('id') id: number) {
+    return this.prisma.habitaciones.update({
+      where: { id: BigInt(id) },
+      data: { activo: true },
     });
   }
 
@@ -327,8 +401,12 @@ export class AdminController {
   // ======================
   @Get('menu/categories')
   @ApiOperation({ summary: 'Listar categorías del menú' })
-  async getMenuCategories() {
+  @ApiQuery({ name: 'incluir_inactivos', required: false, type: Boolean })
+  async getMenuCategories(
+    @Query('incluir_inactivos') incluirInactivos?: string,
+  ) {
     return this.prisma.categorias_menu.findMany({
+      where: incluirInactivos === 'true' ? {} : { activo: true },
       orderBy: { nombre: 'asc' },
     });
   }
@@ -336,8 +414,16 @@ export class AdminController {
   @Post('menu/categories')
   @ApiOperation({ summary: 'Crear nueva categoría de menú' })
   async createMenuCategory(@Body() body: CreateMenuCategoryDto) {
+    const existing = await this.prisma.categorias_menu.findFirst({
+      where: { nombre: { equals: body.nombre.trim(), mode: 'insensitive' } },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Ya existe una categoría de menú llamada "${body.nombre}"`,
+      );
+    }
     return this.prisma.categorias_menu.create({
-      data: { nombre: body.nombre },
+      data: { nombre: body.nombre.trim() },
     });
   }
 
@@ -347,17 +433,42 @@ export class AdminController {
     @Param('id') id: number,
     @Body() body: UpdateMenuCategoryDto,
   ) {
+    if (body.nombre !== undefined) {
+      const existing = await this.prisma.categorias_menu.findFirst({
+        where: {
+          id: { not: BigInt(id) },
+          nombre: { equals: body.nombre.trim(), mode: 'insensitive' },
+        },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Ya existe una categoría de menú llamada "${body.nombre}"`,
+        );
+      }
+    }
     return this.prisma.categorias_menu.update({
       where: { id: BigInt(id) },
-      data: { nombre: body.nombre },
+      data: {
+        nombre: body.nombre !== undefined ? body.nombre.trim() : undefined,
+      },
     });
   }
 
   @Delete('menu/categories/:id')
-  @ApiOperation({ summary: 'Eliminar categoría de menú' })
+  @ApiOperation({ summary: 'Eliminar categoría de menú (soft delete)' })
   async deleteMenuCategory(@Param('id') id: number) {
-    return this.prisma.categorias_menu.delete({
+    return this.prisma.categorias_menu.update({
       where: { id: BigInt(id) },
+      data: { activo: false },
+    });
+  }
+
+  @Patch('menu/categories/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivar categoría de menú' })
+  async reactivateMenuCategory(@Param('id') id: number) {
+    return this.prisma.categorias_menu.update({
+      where: { id: BigInt(id) },
+      data: { activo: true },
     });
   }
 
@@ -368,9 +479,17 @@ export class AdminController {
   @ApiOperation({
     summary: 'Listar productos del menú con filtro por categoría',
   })
-  async getMenuProducts(@Query('categoria_id') categoria_id?: number) {
+  @ApiQuery({ name: 'categoria_id', required: false, type: Number })
+  @ApiQuery({ name: 'incluir_inactivos', required: false, type: Boolean })
+  async getMenuProducts(
+    @Query('categoria_id') categoria_id?: number,
+    @Query('incluir_inactivos') incluirInactivos?: string,
+  ) {
     const products = await this.prisma.productos_menu.findMany({
-      where: categoria_id ? { categoria_id: BigInt(categoria_id) } : {},
+      where: {
+        ...(categoria_id ? { categoria_id: BigInt(categoria_id) } : {}),
+        ...(incluirInactivos === 'true' ? {} : { activo: true }),
+      },
       include: { categorias_menu: { select: { nombre: true } } },
       orderBy: { nombre: 'asc' },
     });
@@ -380,9 +499,17 @@ export class AdminController {
   @Post('menu/products')
   @ApiOperation({ summary: 'Crear nuevo producto de menú' })
   async createMenuProduct(@Body() body: CreateProductDto) {
+    const existing = await this.prisma.productos_menu.findFirst({
+      where: { nombre: { equals: body.nombre.trim(), mode: 'insensitive' } },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Ya existe un producto de menú llamado "${body.nombre}"`,
+      );
+    }
     return this.prisma.productos_menu.create({
       data: {
-        nombre: body.nombre,
+        nombre: body.nombre.trim(),
         categoria_id: BigInt(body.categoria_id),
         precio: body.precio,
         stock: body.stock,
@@ -399,7 +526,20 @@ export class AdminController {
     @Body() body: UpdateProductDto,
   ) {
     const data: Prisma.productos_menuUncheckedUpdateInput = {};
-    if (body.nombre !== undefined) data.nombre = body.nombre;
+    if (body.nombre !== undefined) {
+      const existing = await this.prisma.productos_menu.findFirst({
+        where: {
+          id: { not: BigInt(id) },
+          nombre: { equals: body.nombre.trim(), mode: 'insensitive' },
+        },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Ya existe un producto de menú llamado "${body.nombre}"`,
+        );
+      }
+      data.nombre = body.nombre.trim();
+    }
     if (body.precio !== undefined) data.precio = body.precio;
     if (body.stock !== undefined) data.stock = body.stock;
     if (body.descripcion) data.descripcion = body.descripcion;
@@ -411,10 +551,20 @@ export class AdminController {
   }
 
   @Delete('menu/products/:id')
-  @ApiOperation({ summary: 'Eliminar producto de menú' })
+  @ApiOperation({ summary: 'Eliminar producto de menú (soft delete)' })
   async deleteMenuProduct(@Param('id') id: number) {
-    return this.prisma.productos_menu.delete({
+    return this.prisma.productos_menu.update({
       where: { id: BigInt(id) },
+      data: { activo: false },
+    });
+  }
+
+  @Patch('menu/products/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivar producto de menú' })
+  async reactivateMenuProduct(@Param('id') id: number) {
+    return this.prisma.productos_menu.update({
+      where: { id: BigInt(id) },
+      data: { activo: true },
     });
   }
 
@@ -433,9 +583,17 @@ export class AdminController {
   @Post('events/salons')
   @ApiOperation({ summary: 'Crear nuevo salón de eventos' })
   async createEventSalon(@Body() body: CreateSalonDto) {
+    const existing = await this.prisma.salones.findFirst({
+      where: { nombre: { equals: body.nombre.trim(), mode: 'insensitive' } },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Ya existe un salón de eventos llamado "${body.nombre}"`,
+      );
+    }
     return this.prisma.salones.create({
       data: {
-        nombre: body.nombre,
+        nombre: body.nombre.trim(),
         capacidad: body.capacidad,
         precio_base: body.precio_base,
         imagen_url: body.imagen_url,
@@ -451,7 +609,20 @@ export class AdminController {
     @Body() body: UpdateSalonDto,
   ) {
     const data: Prisma.salonesUpdateInput = {};
-    if (body.nombre !== undefined) data.nombre = body.nombre;
+    if (body.nombre !== undefined) {
+      const existing = await this.prisma.salones.findFirst({
+        where: {
+          id: { not: BigInt(id) },
+          nombre: { equals: body.nombre.trim(), mode: 'insensitive' },
+        },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Ya existe un salón de eventos llamado "${body.nombre}"`,
+        );
+      }
+      data.nombre = body.nombre.trim();
+    }
     if (body.capacidad !== undefined) data.capacidad = body.capacidad;
     if (body.precio_base !== undefined) data.precio_base = body.precio_base;
     if (body.imagen_url !== undefined) data.imagen_url = body.imagen_url;
@@ -485,9 +656,11 @@ export class AdminController {
   @ApiOperation({ summary: 'Listar galería de imágenes de un ítem' })
   @ApiQuery({ name: 'entidad', required: true, enum: IMAGEN_ENTIDADES })
   @ApiQuery({ name: 'entidad_id', required: true, type: Number })
+  @ApiQuery({ name: 'incluir_inactivos', required: false, type: Boolean })
   async getImagenes(
     @Query('entidad') entidad: string,
     @Query('entidad_id') entidadId: string,
+    @Query('incluir_inactivos') incluirInactivos?: string,
   ) {
     if (!entidad || !entidadId) {
       throw new BadRequestException('entidad y entidad_id son obligatorios');
@@ -498,8 +671,18 @@ export class AdminController {
       this.parseImagenId(entidadId),
     );
     const rows = await this.prisma.imagenes.findMany({
-      where: { entidad: valid, entidad_id: this.parseImagenId(entidadId) },
-      select: { id: true, url: true, es_principal: true, orden: true },
+      where: {
+        entidad: valid,
+        entidad_id: this.parseImagenId(entidadId),
+        ...(incluirInactivos === 'true' ? {} : { activo: true }),
+      },
+      select: {
+        id: true,
+        url: true,
+        es_principal: true,
+        orden: true,
+        activo: true,
+      },
       orderBy: [{ orden: 'asc' }, { id: 'asc' }],
     });
     return rows.map(toImagenDto);
@@ -518,7 +701,7 @@ export class AdminController {
       entidadId,
     );
     const existentes = await this.prisma.imagenes.count({
-      where: { entidad, entidad_id: entidadId },
+      where: { entidad, entidad_id: entidadId, activo: true },
     });
     const esPrincipal = body.es_principal ?? existentes === 0;
 
@@ -619,6 +802,7 @@ export class AdminController {
           entidad: current.entidad,
           entidad_id: current.entidad_id,
           es_principal: true,
+          activo: true,
         },
         orderBy: [{ orden: 'asc' }, { id: 'asc' }],
       });
@@ -635,6 +819,7 @@ export class AdminController {
             entidad: current.entidad,
             entidad_id: current.entidad_id,
             NOT: { id: imagenId },
+            activo: true,
           },
           orderBy: [{ orden: 'asc' }, { id: 'asc' }],
         });
@@ -668,7 +853,7 @@ export class AdminController {
   @Delete('imagenes/:id')
   @ApiOperation({
     summary:
-      'Eliminar imagen de la galería (si era la principal, se reasigna la portada)',
+      'Eliminar imagen de la galería (soft delete; si era la principal, se reasigna la portada)',
   })
   async deleteImagen(@Param('id') id: string) {
     const imagenId = this.parseImagenId(id);
@@ -677,13 +862,17 @@ export class AdminController {
     });
     if (!current) throw new NotFoundException('Imagen no encontrada');
 
-    await this.prisma.imagenes.delete({ where: { id: imagenId } });
+    await this.prisma.imagenes.update({
+      where: { id: imagenId },
+      data: { activo: false },
+    });
 
     if (current.es_principal) {
       const fallback = await this.prisma.imagenes.findFirst({
         where: {
           entidad: current.entidad,
           entidad_id: current.entidad_id,
+          activo: true,
         },
         orderBy: [{ orden: 'asc' }, { id: 'asc' }],
       });
@@ -711,6 +900,32 @@ export class AdminController {
     }
 
     return { deleted: true, id: imagenId.toString() };
+  }
+
+  @Patch('imagenes/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivar imagen de la galería' })
+  async reactivateImagen(@Param('id') id: string) {
+    const imagenId = this.parseImagenId(id);
+    const current = await this.prisma.imagenes.findUnique({
+      where: { id: imagenId },
+    });
+    if (!current) throw new NotFoundException('Imagen no encontrada');
+
+    const imagen = await this.prisma.imagenes.update({
+      where: { id: imagenId },
+      data: { activo: true },
+    });
+
+    if (imagen.es_principal) {
+      await syncImagenPrincipal(
+        this.prisma,
+        imagen.entidad,
+        imagen.entidad_id,
+        imagen.url,
+      );
+    }
+
+    return toImagenDto(imagen);
   }
 
   // ======================
@@ -1044,16 +1259,69 @@ export class AdminController {
 
     const events: CalendarEvent[] = [];
 
+    type HotelDayType = NonNullable<CalendarEvent['type']>;
+    const hotelDayLabels: Record<HotelDayType, (n: string) => string> = {
+      'check-in': (n) => `Check-in: ${n}`,
+      occupied: (n) => `Habitación ocupada: ${n}`,
+      'check-out': (n) => `Check-out: ${n}`,
+    };
+
     hoteles.forEach((r) => {
-      events.push({
-        id: Number(r.id),
-        title: `Hotel: ${r.usuarios.nombre} ${r.usuarios.apellido}`,
-        date: this.fmtDate(r.fecha_entrada),
-        time: '—',
-        location: 'Hotel',
-        category: 'reservas',
-        color: '#fdcb6e',
-      });
+      const nombre = `${r.usuarios.nombre} ${r.usuarios.apellido}`;
+      const entrada = this.fmtDate(r.fecha_entrada);
+      const salida = this.fmtDate(r.fecha_salida);
+
+      const pushDay = (dateStr: string, type: HotelDayType) => {
+        events.push({
+          id: Number(r.id),
+          title: hotelDayLabels[type](nombre),
+          date: dateStr,
+          time: '—',
+          location: 'Hotel',
+          category: 'reservas',
+          color: '#fdcb6e',
+          type,
+        });
+      };
+
+      if (!entrada) return;
+      if (!salida) {
+        pushDay(entrada, 'check-in');
+        return;
+      }
+
+      const [ey, em, ed] = entrada.split('-').map(Number);
+      const [sy, sm, sd] = salida.split('-').map(Number);
+      const start = new Date(ey, em - 1, ed);
+      const end = new Date(sy, sm - 1, sd);
+
+      if (end < start) {
+        pushDay(entrada, 'check-in');
+        return;
+      }
+
+      if (entrada === salida) {
+        pushDay(entrada, 'check-in');
+        pushDay(salida, 'check-out');
+        return;
+      }
+
+      const cur = new Date(start);
+      cur.setDate(cur.getDate() - 1);
+      while (cur < end) {
+        cur.setDate(cur.getDate() + 1);
+        const y = cur.getFullYear();
+        const m = String(cur.getMonth() + 1).padStart(2, '0');
+        const d = String(cur.getDate()).padStart(2, '0');
+        const iso = `${y}-${m}-${d}`;
+        const type: HotelDayType =
+          iso === entrada
+            ? 'check-in'
+            : iso === salida
+              ? 'check-out'
+              : 'occupied';
+        pushDay(iso, type);
+      }
     });
 
     restaurantes.forEach((r) => {
@@ -1230,6 +1498,9 @@ export class AdminController {
     hora_fin: Date | null;
     estado: string;
     prioridad: string;
+    reporte: string | null;
+    reporte_imagen_url: string | null;
+    reporte_at: Date | null;
     created_at: Date | null;
     updated_at: Date | null;
     usuarios_tareas_asignado_aTousuarios: {
@@ -1253,6 +1524,9 @@ export class AdminController {
       hora_fin: this.fmtTime(t.hora_fin),
       estado: t.estado,
       prioridad: t.prioridad,
+      reporte: t.reporte,
+      reporte_imagen_url: t.reporte_imagen_url,
+      reporte_at: t.reporte_at,
       asignado_a: t.usuarios_tareas_asignado_aTousuarios
         ? {
             id: Number(t.usuarios_tareas_asignado_aTousuarios.id),
@@ -1300,6 +1574,162 @@ export class AdminController {
       correo: e.correo,
       telefono: e.telefono,
     }));
+  }
+
+  @Get('employees/:id')
+  @ApiOperation({ summary: 'Detalle de empleado' })
+  async getEmployee(@Param('id') id: string) {
+    const emp = await this.prisma.usuarios.findUnique({
+      where: { id: BigInt(id) },
+      include: { roles: true },
+    });
+
+    if (!emp || emp.roles?.nombre !== 'Empleado') {
+      throw new NotFoundException('Empleado no encontrado');
+    }
+
+    return {
+      id: Number(emp.id),
+      nombre: emp.nombre,
+      apellido: emp.apellido,
+      correo: emp.correo,
+      telefono: emp.telefono,
+      tipo_documento_id: Number(emp.tipo_documento_id),
+      numero_documento: emp.numero_documento,
+      estado: emp.estado,
+    };
+  }
+
+  @Post('employees')
+  @ApiOperation({ summary: 'Crear nuevo empleado' })
+  async createEmployee(@Body() body: CreateEmployeeDto) {
+    const existing = await this.prisma.usuarios.findFirst({
+      where: {
+        OR: [
+          { correo: body.correo },
+          { numero_documento: body.numero_documento },
+        ],
+      },
+    });
+
+    if (existing) {
+      const field =
+        existing.correo === body.correo ? 'correo' : 'número de documento';
+      throw new ConflictException(`El ${field} ya está registrado`);
+    }
+
+    const role = await this.prisma.roles.findFirst({
+      where: { nombre: 'Empleado', estado: true },
+    });
+
+    if (!role) {
+      throw new BadRequestException('Rol de empleado no encontrado');
+    }
+
+    const password_hash = await bcrypt.hash(body.password, 10);
+
+    const emp = await this.prisma.usuarios.create({
+      data: {
+        nombre: body.nombre,
+        apellido: body.apellido,
+        tipo_documento_id: BigInt(body.tipo_documento_id),
+        numero_documento: body.numero_documento,
+        telefono: body.telefono,
+        correo: body.correo,
+        password_hash,
+        rol_id: role.id,
+        correo_verificado: true,
+        estado: true,
+      },
+    });
+
+    return {
+      id: Number(emp.id),
+      nombre: `${emp.nombre} ${emp.apellido}`,
+      correo: emp.correo,
+      telefono: emp.telefono,
+    };
+  }
+
+  @Patch('employees/:id')
+  @ApiOperation({ summary: 'Actualizar empleado' })
+  async updateEmployee(
+    @Param('id') id: string,
+    @Body() body: UpdateEmployeeDto,
+  ) {
+    const existing = await this.prisma.usuarios.findUnique({
+      where: { id: BigInt(id) },
+      include: { roles: true },
+    });
+
+    if (!existing || existing.roles?.nombre !== 'Empleado') {
+      throw new NotFoundException('Empleado no encontrado');
+    }
+
+    if (body.correo || body.numero_documento) {
+      const duplicate = await this.prisma.usuarios.findFirst({
+        where: {
+          id: { not: BigInt(id) },
+          OR: [
+            ...(body.correo ? [{ correo: body.correo }] : []),
+            ...(body.numero_documento
+              ? [{ numero_documento: body.numero_documento }]
+              : []),
+          ],
+        },
+      });
+
+      if (duplicate) {
+        const field =
+          duplicate.correo === body.correo ? 'correo' : 'número de documento';
+        throw new ConflictException(`El ${field} ya está registrado`);
+      }
+    }
+
+    const data: Prisma.usuariosUncheckedUpdateInput = {};
+    if (body.nombre !== undefined) data.nombre = body.nombre;
+    if (body.apellido !== undefined) data.apellido = body.apellido;
+    if (body.tipo_documento_id !== undefined)
+      data.tipo_documento_id = BigInt(body.tipo_documento_id);
+    if (body.numero_documento !== undefined)
+      data.numero_documento = body.numero_documento;
+    if (body.telefono !== undefined) data.telefono = body.telefono;
+    if (body.correo !== undefined) data.correo = body.correo;
+    if (body.password !== undefined) {
+      data.password_hash = await bcrypt.hash(body.password, 10);
+    }
+
+    const emp = await this.prisma.usuarios.update({
+      where: { id: BigInt(id) },
+      data,
+    });
+
+    return {
+      id: Number(emp.id),
+      nombre: `${emp.nombre} ${emp.apellido}`,
+      correo: emp.correo,
+      telefono: emp.telefono,
+    };
+  }
+
+  @Delete('employees/:id')
+  @ApiOperation({ summary: 'Desactivar empleado (soft delete)' })
+  async deleteEmployee(@Param('id') id: string) {
+    const existing = await this.prisma.usuarios.findUnique({
+      where: { id: BigInt(id) },
+      include: { roles: true },
+    });
+
+    if (!existing || existing.roles?.nombre !== 'Empleado') {
+      throw new NotFoundException('Empleado no encontrado');
+    }
+
+    await this.prisma.usuarios.update({
+      where: { id: BigInt(id) },
+      data: { estado: false },
+    });
+
+    return { deleted: true, id };
   }
 
   // ======================

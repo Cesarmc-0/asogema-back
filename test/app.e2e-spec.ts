@@ -3,6 +3,8 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { ValidatedPipe } from 'src/common/pipes/validation.pipe';
+import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -13,6 +15,11 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new ValidatedPipe());
+    app.useGlobalFilters(new HttpExceptionFilter());
+    BigInt.prototype.toJSON = function (this: bigint) {
+      return this.toString();
+    };
     await app.init();
   });
 
@@ -20,7 +27,7 @@ describe('AppController (e2e)', () => {
     return request(app.getHttpServer())
       .get('/')
       .expect(200)
-      .expect('Hello World!');
+      .expect({ name: 'asogema-back', version: '0.0.1', status: 'ok' });
   });
 
   afterEach(async () => {

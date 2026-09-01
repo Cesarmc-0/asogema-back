@@ -2,6 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 import { FactusGateway } from '../../domain/gateways/factus-gateway.interface';
 import { getIvaCode, getIvaRate } from '../../domain/iva.util';
+import { detalle_factura, pagos, Prisma } from '@prisma/client';
+
+type FacturaConRelaciones = Prisma.facturasGetPayload<{
+  include: { usuarios: true; detalle_factura: true; pagos: true };
+}>;
 
 @Injectable()
 export class GenerarFacturaUseCase {
@@ -47,17 +52,25 @@ export class GenerarFacturaUseCase {
     );
   }
 
-  private buildPayload(factura: any) {
+  private buildPayload(factura: FacturaConRelaciones) {
     const cliente = factura.usuarios;
-    const items = factura.detalle_factura;
 
-    if (items.length === 0) {
-      items.push({
-        descripcion: `Reserva evento - ref ${factura.id}`,
-        cantidad: 1,
-        precio_unitario: factura.subtotal,
-      });
-    }
+    type ItemFactura = { id: bigint | null } & Pick<
+      detalle_factura,
+      'descripcion' | 'cantidad' | 'precio_unitario'
+    >;
+
+    const items: ItemFactura[] =
+      factura.detalle_factura.length > 0
+        ? factura.detalle_factura
+        : [
+            {
+              id: null,
+              descripcion: `Reserva evento - ref ${factura.id}`,
+              cantidad: 1,
+              precio_unitario: factura.subtotal,
+            },
+          ];
 
     const pago = factura.pagos[0];
 
@@ -84,7 +97,7 @@ export class GenerarFacturaUseCase {
         country_code: 'CO',
         municipality_code: '66001',
       },
-      items: items.map((item: any) => ({
+      items: items.map((item: detalle_factura) => ({
         code_reference: `ITEM-${factura.id}-${item.id}`,
         name: item.descripcion,
         quantity: String(item.cantidad),
@@ -93,15 +106,21 @@ export class GenerarFacturaUseCase {
         standard_code: '999',
         taxes: [
           {
-            code: getIvaCode(factura.subtotal, factura.impuestos),
-            rate: getIvaRate(factura.subtotal, factura.impuestos),
+            code: getIvaCode(
+              Number(factura.subtotal),
+              Number(factura.impuestos),
+            ),
+            rate: getIvaRate(
+              Number(factura.subtotal),
+              Number(factura.impuestos),
+            ),
           },
         ],
       })),
     };
   }
 
-  private getMetodoPagoDian(pago: any): string {
+  private getMetodoPagoDian(pago: pagos): string {
     if (pago?.tipo_tarjeta === 'CREDITO') return '48';
     if (pago?.tipo_tarjeta === 'DEBITO') return '42';
     if (pago?.metodo_pago === 'TARJETA') return '42';

@@ -45,8 +45,13 @@ export class PaymentMethodMapper {
    * Valida los datos de la tarjeta y los devuelve listos para tokenizar.
    */
   requireCardData(): CardDataValidated {
-    const { card_number, card_exp_month, card_exp_year, card_cvc, card_holder } =
-      this.data;
+    const {
+      card_number,
+      card_exp_month,
+      card_exp_year,
+      card_cvc,
+      card_holder,
+    } = this.data;
 
     if (!card_number || !/^\d{14,16}$/.test(card_number)) {
       throw new BadRequestException('Ingresa un número de tarjeta válido');

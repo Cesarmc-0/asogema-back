@@ -12,6 +12,7 @@ export const UPLOAD_FOLDERS: readonly string[] = [
   'tipos-habitacion',
   'habitaciones',
   'productos',
+  'tareas',
 ];
 
 export const DEFAULT_UPLOAD_FOLDER = 'general';
@@ -26,4 +27,6 @@ export abstract class ImageStorage {
     file: Express.Multer.File,
     folder?: string,
   ): Promise<UploadedImage>;
+
+  abstract delete(key: string): Promise<void>;
 }

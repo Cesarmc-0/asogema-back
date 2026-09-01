@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Post,
-  Req,
-  Headers,
-  HttpCode,
-} from '@nestjs/common';
+import { Controller, Post, Req, Headers, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from 'src/auth/presentation/dto/decorators/public.decorator';

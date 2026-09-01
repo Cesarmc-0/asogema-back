@@ -1,6 +1,10 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  PutObjectCommand,
+  DeleteObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import {
   ALLOWED_IMAGE_MIME_TYPES,
   ImageStorage,
@@ -72,5 +76,16 @@ export class S3StorageService extends ImageStorage {
 
     this.logger.log(`Imagen subida a S3: ${key}`);
     return { url, key };
+  }
+
+  async delete(key: string): Promise<void> {
+    try {
+      await this.client.send(
+        new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+      this.logger.log(`Imagen eliminada de S3: ${key}`);
+    } catch {
+      this.logger.warn(`No se pudo eliminar imagen de S3: ${key}`);
+    }
   }
 }

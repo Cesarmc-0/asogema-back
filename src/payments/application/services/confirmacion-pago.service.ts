@@ -45,7 +45,8 @@ export class ConfirmacionPagoService {
         detalle?.descripcion ?? `Compra Asogema - ref ${factura.id}`;
 
       await this.emailSender.sendPurchaseReceipt({
-        nombre: `${factura.usuarios.nombre} ${factura.usuarios.apellido}`.trim(),
+        nombre:
+          `${factura.usuarios.nombre} ${factura.usuarios.apellido}`.trim(),
         correo: factura.usuarios.correo,
         factura_id: facturaId,
         referencia: `FACT-${factura.id}`,

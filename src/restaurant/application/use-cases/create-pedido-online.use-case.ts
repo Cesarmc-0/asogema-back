@@ -26,7 +26,7 @@ export class CreatePedidoOnlineUseCase {
     }
 
     const productos = await this.prisma.productos_menu.findMany({
-      where: { id: { in: dto.items.map((i) => i.producto_id) } },
+      where: { id: { in: dto.items.map((i) => i.producto_id) }, activo: true },
     });
 
     if (productos.length !== dto.items.length) {
