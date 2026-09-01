@@ -8,6 +8,7 @@ import {
   WelcomeVerificationPayload,
   BookingPayload,
   PurchaseReceiptPayload,
+  PasswordRecoveryPayload,
 } from '../domain/email-sender.interface';
 
 export const EMAIL_QUEUE = 'email-queue';
@@ -35,6 +36,10 @@ export class NotificationService extends EmailSender {
 
   async sendPurchaseReceipt(payload: PurchaseReceiptPayload): Promise<void> {
     await this.enqueue({ type: 'purchase-receipt', ...payload });
+  }
+
+  async sendPasswordRecovery(payload: PasswordRecoveryPayload): Promise<void> {
+    await this.enqueue({ type: 'password-recovery', ...payload });
   }
 
   private async enqueue(data: EmailJobData): Promise<void> {

@@ -107,11 +107,9 @@ export class RestaurantController {
   }
 
   @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Cambiar estado de un pedido (Mesero/Administrador)',
-  })
+  @ApiOperation({ summary: 'Cambiar estado de un pedido (Mesero/Comanda/Administrador)' })
   @UseGuards(AuthGuard('jwt'))
-  @Roles('Mesero', 'Administrador')
+  @Roles('Mesero', 'Comanda', 'Administrador')
   @Patch('pedidos/:id/estado')
   async updatePedidoEstado(
     @Param('id') id: string,

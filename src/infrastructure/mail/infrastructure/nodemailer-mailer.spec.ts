@@ -60,4 +60,24 @@ describe('NodemailerMailer', () => {
       }),
     );
   });
+
+  it('envía correo de recuperación de contraseña con el template renderizado', async () => {
+    await mailer.sendPasswordRecovery({
+      nombre: 'Juan Pérez',
+      correo: 'juan@test.com',
+      codigo: '654321',
+    });
+
+    expect(sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'juan@test.com',
+        from: 'Asogema <no-reply@asogema.com>',
+        subject: expect.stringContaining('Recuperación de contraseña'),
+      }),
+    );
+    const html = (sendMail.mock.calls[0][0] as { html: string }).html;
+    expect(html).toContain('654321');
+    expect(html).toContain('Juan Pérez');
+    expect(html).not.toContain('{{codigo}}');
+  });
 });

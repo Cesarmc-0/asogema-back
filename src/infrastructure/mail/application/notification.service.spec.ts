@@ -55,6 +55,30 @@ describe('NotificationService', () => {
     );
   });
 
+  it('encola un correo de recuperación de contraseña', async () => {
+    mockQueue.add.mockResolvedValue({});
+
+    await service.sendPasswordRecovery({
+      nombre: 'Juan Pérez',
+      correo: 'juan@test.com',
+      codigo: '654321',
+    });
+
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      'send',
+      {
+        type: 'password-recovery',
+        nombre: 'Juan Pérez',
+        correo: 'juan@test.com',
+        codigo: '654321',
+      },
+      expect.objectContaining({
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+      }),
+    );
+  });
+
   it('no propaga errores de la cola al flujo de negocio', async () => {
     mockQueue.add.mockRejectedValue(new Error('Redis caído'));
 
