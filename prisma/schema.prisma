@@ -400,7 +400,7 @@ model pedidos_online {
   descuento           Decimal               @default(0) @db.Decimal(12, 2)
   impuestos           Decimal               @default(0) @db.Decimal(12, 2)
   total               Decimal               @default(0) @db.Decimal(12, 2)
-  estado              String                @default("PENDIENTE") @db.VarChar(20)
+  estado              String                @default("RECIBIDO") @db.VarChar(20)
   qr_url              String?
   created_at          DateTime              @default(now()) @db.Timestamp(6)
   updated_at          DateTime              @default(now()) @db.Timestamp(6)

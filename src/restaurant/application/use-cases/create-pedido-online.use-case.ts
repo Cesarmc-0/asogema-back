@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 import { RestaurantRepository } from 'src/restaurant/domain/repositories/restaurant-repository.interface';
+import { ComandaGateway } from 'src/restaurant/infrastructure/gateways/comanda.gateway';
 import { IVA_DEFAULT_RATE } from 'src/facturacion/domain/iva.util';
 
 export const MESA_FEE = 5000;
@@ -18,6 +19,7 @@ export class CreatePedidoOnlineUseCase {
   constructor(
     private readonly prisma: PrismaService,
     private readonly restaurantRepo: RestaurantRepository,
+    private readonly comandaGateway: ComandaGateway,
   ) {}
 
   async execute(usuarioId: bigint, dto: CreatePedidoOnlineInput) {
@@ -78,6 +80,8 @@ export class CreatePedidoOnlineUseCase {
       total: new Decimal(total),
       items,
     });
+
+    this.comandaGateway.notificarCambio({ pedido_id: Number(pedido.id) });
 
     return {
       pedido_id: pedido.id,
