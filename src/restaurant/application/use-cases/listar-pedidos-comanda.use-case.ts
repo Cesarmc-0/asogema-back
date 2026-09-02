@@ -3,15 +3,14 @@ import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.se
 
 @Injectable()
 export class ListarPedidosComandaUsecase {
-    constructor(private readonly prisma: PrismaService){}
+  constructor(private readonly prisma: PrismaService) {}
 
-    async execute(usuarioId: bigint, rol: string){
-
+  async execute(usuarioId: bigint, rol: string) {
     const inicioDia = new Date();
     inicioDia.setHours(0, 0, 0, 0);
 
     const where =
-    rol === 'Mesero'
+      rol === 'Mesero'
         ? { usuario_id: usuarioId, created_at: { gte: inicioDia } }
         : { created_at: { gte: inicioDia } };
 
@@ -40,5 +39,5 @@ export class ListarPedidosComandaUsecase {
         precio_unitario: Number(item.precio_unitario),
       })),
     }));
-    }
+  }
 }

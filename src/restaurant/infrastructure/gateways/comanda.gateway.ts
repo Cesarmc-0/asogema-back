@@ -1,7 +1,4 @@
-import {
-  OnModuleInit,
-  UseGuards,
-} from '@nestjs/common';
+import { OnModuleInit } from '@nestjs/common';
 import {
   MessageBody,
   SubscribeMessage,
@@ -20,7 +17,6 @@ export class ComandaGateway implements OnModuleInit {
     console.log('ComandaGateway inicializado');
   }
 
-  
   notificarPedidoListo(payload: { pedido_id: number; mesero_id: number }) {
     this.server.to(`mesero:${payload.mesero_id}`).emit('pedido_listo', {
       pedido_id: payload.pedido_id,
@@ -33,14 +29,17 @@ export class ComandaGateway implements OnModuleInit {
   }
 
   @SubscribeMessage('unirse_mesero')
-  handleJoin(@MessageBody() data: { mesero_id: number }, @ConnectedSocket() client: Socket) {
-    client.join(`mesero:${data.mesero_id}`);
+  async handleJoin(
+    @MessageBody() data: { mesero_id: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    await client.join(`mesero:${data.mesero_id}`);
     return { ok: true };
   }
 
   @SubscribeMessage('unirse_comanda')
-  handleJoinComanda(@ConnectedSocket() client: Socket) {
-    client.join('comanda');
+  async handleJoinComanda(@ConnectedSocket() client: Socket) {
+    await client.join('comanda');
     return { ok: true };
   }
 }
