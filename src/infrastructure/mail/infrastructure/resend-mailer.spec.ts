@@ -1,25 +1,22 @@
-jest.mock('nodemailer');
-import { createTransport } from 'nodemailer';
-import { NodemailerMailer } from './nodemailer-mailer';
+jest.mock('resend');
+import { Resend } from 'resend';
+import { ResendMailer } from './resend-mailer';
 
-const sendMail = jest.fn();
+const send = jest.fn();
 
-(createTransport as jest.Mock).mockReturnValue({
-  sendMail,
-});
+(Resend as unknown as jest.Mock).mockImplementation(() => ({
+  emails: { send },
+}));
 
-describe('NodemailerMailer', () => {
-  let mailer: NodemailerMailer;
+describe('ResendMailer', () => {
+  let mailer: ResendMailer;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.MAIL_HOST = 'smtp.test.com';
-    process.env.MAIL_PORT = '587';
-    process.env.MAIL_USER = 'user@test.com';
-    process.env.MAIL_PASS = 'pass';
-    process.env.MAIL_FROM = 'Asogema <no-reply@asogema.com>';
-    sendMail.mockResolvedValue({ messageId: 'm1' });
-    mailer = new NodemailerMailer();
+    process.env.RESEND_API_KEY = 're_test';
+    process.env.RESEND_FROM = 'Asogema <no-reply@asogema.com>';
+    send.mockResolvedValue({ data: { id: 'mail-1' }, error: null });
+    mailer = new ResendMailer();
   });
 
   it('envía correo de bienvenida con el template renderizado', async () => {
@@ -29,15 +26,15 @@ describe('NodemailerMailer', () => {
       codigo: '123456',
     });
 
-    expect(sendMail).toHaveBeenCalledWith(
+    expect(send).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: 'juan@test.com',
         from: 'Asogema <no-reply@asogema.com>',
+        to: 'juan@test.com',
         subject: expect.stringContaining('Bienvenido'),
         html: expect.stringContaining('Juan Pérez'),
       }),
     );
-    const html = (sendMail.mock.calls[0][0] as { html: string }).html;
+    const html = send.mock.calls[0][0].html;
     expect(html).toContain('123456');
     expect(html).not.toContain('{{codigo}}');
   });
@@ -53,7 +50,7 @@ describe('NodemailerMailer', () => {
       personas: 80,
     });
 
-    expect(sendMail).toHaveBeenCalledWith(
+    expect(send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'juan@test.com',
         subject: expect.stringContaining('salón'),
@@ -68,16 +65,31 @@ describe('NodemailerMailer', () => {
       codigo: '654321',
     });
 
-    expect(sendMail).toHaveBeenCalledWith(
+    expect(send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'juan@test.com',
         from: 'Asogema <no-reply@asogema.com>',
         subject: expect.stringContaining('Recuperación de contraseña'),
       }),
     );
-    const html = (sendMail.mock.calls[0][0] as { html: string }).html;
+    const html = send.mock.calls[0][0].html;
     expect(html).toContain('654321');
     expect(html).toContain('Juan Pérez');
     expect(html).not.toContain('{{codigo}}');
+  });
+
+  it('lanza un error cuando Resend devuelve un error en el envío', async () => {
+    send.mockResolvedValue({
+      data: null,
+      error: { name: 'rate_limit_exceeded', message: 'Too many requests' },
+    });
+
+    await expect(
+      mailer.sendWelcomeVerification({
+        nombre: 'Juan Pérez',
+        correo: 'juan@test.com',
+        codigo: '123456',
+      }),
+    ).rejects.toThrow('rate_limit_exceeded');
   });
 });
