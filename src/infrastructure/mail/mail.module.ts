@@ -6,7 +6,7 @@ import {
   EMAIL_QUEUE,
 } from './application/notification.service';
 import { EmailQueueProcessor } from './application/email-queue.processor';
-import { NodemailerMailer } from './infrastructure/nodemailer-mailer';
+import { ResendMailer } from './infrastructure/resend-mailer';
 
 @Global()
 @Module({
@@ -14,7 +14,7 @@ import { NodemailerMailer } from './infrastructure/nodemailer-mailer';
   providers: [
     NotificationService,
     EmailQueueProcessor,
-    NodemailerMailer,
+    ResendMailer,
     { provide: EmailSender, useExisting: NotificationService },
   ],
   exports: [EmailSender, NotificationService],
