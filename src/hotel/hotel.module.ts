@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { PaymentsModule } from 'src/payments/payments.module';
 import { GetAvailableRoomsUseCase } from 'src/hotel/application/use-cases/get-available-rooms.use-case';
 import { CreateHotelBookingUseCase } from 'src/hotel/application/use-cases/create-hotel-booking.use-case';
 import { GetMyBookingsUseCase } from 'src/hotel/application/use-cases/get-my-bookings.use-case';
@@ -8,7 +7,6 @@ import { HotelRepositoryImpl } from 'src/hotel/infrastructure/persistence/hotel.
 import { HotelController } from 'src/hotel/presentation/controllers/hotel.controller';
 
 @Module({
-  imports: [PaymentsModule],
   controllers: [HotelController],
   providers: [
     GetAvailableRoomsUseCase,
