@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AdminController } from './admin.controller';
 
 jest.mock('bcrypt', () => ({
@@ -18,6 +22,10 @@ function buildMocks() {
     },
     roles: {
       findFirst: jest.fn(),
+    },
+    tareas: {
+      create: jest.fn(),
+      update: jest.fn(),
     },
   } as any;
 }
@@ -223,6 +231,78 @@ describe('AdminController - Empleados', () => {
       await expect(controller.deleteEmployee('5')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('POST /admin/tasks', () => {
+    const dto = {
+      titulo: 'Limpiar salón',
+      descripcion: 'Limpieza general',
+      fecha: '2026-09-05',
+      asignado_a: 10,
+    };
+    const user = { id: 1n };
+
+    const buildTarea = () => ({
+      id: 20n,
+      titulo: 'Limpiar salón',
+      descripcion: 'Limpieza general',
+      fecha: new Date('2026-09-05T00:00:00'),
+      hora_inicio: null,
+      hora_fin: null,
+      estado: 'PENDIENTE',
+      prioridad: 'MEDIA',
+      reporte: null,
+      reporte_imagen_url: null,
+      reporte_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+      usuarios_tareas_asignado_aTousuarios: {
+        id: 10n,
+        nombre: 'Juan',
+        apellido: 'Pérez',
+        correo: 'juan@asogema.com',
+      },
+      usuarios_tareas_asignado_porTousuarios: {
+        id: 1n,
+        nombre: 'Administrador',
+        apellido: 'Sistema',
+      },
+    });
+
+    it('crea la tarea si el empleado asignado está activo', async () => {
+      prisma.usuarios.findUnique.mockResolvedValue({
+        id: 10n,
+        estado: true,
+        roles: { nombre: 'Empleado' },
+      });
+      prisma.tareas.create.mockResolvedValue(buildTarea());
+
+      const result = (await controller.createTask(dto, user as any)) as any;
+
+      expect(prisma.tareas.create).toHaveBeenCalled();
+      expect(result.asignado_a.id).toBe(10);
+    });
+
+    it('lanza 400 si el empleado asignado está desactivado', async () => {
+      prisma.usuarios.findUnique.mockResolvedValue({
+        id: 10n,
+        estado: false,
+        roles: { nombre: 'Empleado' },
+      });
+
+      await expect(
+        controller.createTask(dto as any, user as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.tareas.create).not.toHaveBeenCalled();
+    });
+
+    it('lanza 400 si el empleado asignado no existe', async () => {
+      prisma.usuarios.findUnique.mockResolvedValue(null);
+
+      await expect(
+        controller.createTask(dto as any, user as any),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });
