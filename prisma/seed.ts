@@ -30,6 +30,7 @@ async function ensureAdmin() {
       correo: ADMIN_EMAIL,
       password_hash: hash,
       telefono: '0000000000',
+      correo_verificado: true,
     },
   });
   console.log(`Admin creado: ${ADMIN_EMAIL}`);
@@ -64,6 +65,7 @@ async function ensureClientes() {
           correo: c.correo,
           password_hash: hash,
           telefono: c.tel,
+          correo_verificado: true,
         },
       });
       console.log(`Cliente creado: ${c.correo}`);
