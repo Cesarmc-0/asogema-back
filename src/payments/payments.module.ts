@@ -12,6 +12,7 @@ import { ConfirmacionPagoService } from './application/services/confirmacion-pag
 import { PaymentOriginResolver } from './application/services/payment-origin.resolver';
 import { ValidarCuponUseCase } from './application/use-cases/validar-cupon.use-case';
 import { ObtenerInstitucionesFinancierasUseCase } from './application/use-cases/obtener-instituciones-financieras.use-case';
+import { ObtenerMisFacturasUseCase } from './application/use-cases/obtener-mis-facturas.use-case';
 import { PaymentGateway } from './domain/gateways/payment-gateway.interface';
 import { PaymentRepository } from './domain/repositories/payment.repository.interface';
 import { WompiGateway } from './infrastructure/gateways/wompi.gateway';
@@ -36,6 +37,7 @@ import { FacturacionModule } from 'src/facturacion/facturacion.module';
     PaymentOriginResolver,
     ValidarCuponUseCase,
     ObtenerInstitucionesFinancierasUseCase,
+    ObtenerMisFacturasUseCase,
     { provide: PaymentGateway, useClass: WompiGateway },
     { provide: PaymentRepository, useClass: PaymentRepositoryImpl },
   ],
