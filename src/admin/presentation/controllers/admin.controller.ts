@@ -51,6 +51,9 @@ import { CreateImagenDto } from '../dto/create-imagen.dto';
 import { UpdateImagenDto } from '../dto/update-imagen.dto';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
 import { UpdateEmployeeDto } from '../dto/update-employee.dto';
+import { CreateMemberDto } from '../dto/create-member.dto';
+import { UpdateMemberDto } from '../dto/update-member.dto';
+import { UpdateMemberStatusDto } from '../dto/update-member-status.dto';
 import {
   IMAGEN_ENTIDADES,
   assertImagenEntity,
@@ -1840,5 +1843,139 @@ export class AdminController {
         estado: f.estado,
       })),
     };
+  }
+
+  @Post('members')
+  @ApiOperation({ summary: 'Crear nuevo socio (cliente)' })
+  async createMember(@Body() body: CreateMemberDto) {
+    const existing = await this.prisma.usuarios.findFirst({
+      where: {
+        OR: [
+          { correo: body.correo },
+          { numero_documento: body.numero_documento },
+        ],
+      },
+    });
+
+    if (existing) {
+      const field =
+        existing.correo === body.correo ? 'correo' : 'número de documento';
+      throw new ConflictException(`El ${field} ya está registrado`);
+    }
+
+    const role = await this.prisma.roles.findFirst({
+      where: { nombre: 'Cliente', estado: true },
+    });
+
+    if (!role) {
+      throw new BadRequestException('Rol de cliente no encontrado');
+    }
+
+    const password_hash = await bcrypt.hash(body.password, 10);
+
+    const socio = await this.prisma.usuarios.create({
+      data: {
+        nombre: body.nombre,
+        apellido: body.apellido,
+        tipo_documento_id: BigInt(body.tipo_documento_id),
+        numero_documento: body.numero_documento,
+        telefono: body.telefono,
+        correo: body.correo,
+        password_hash,
+        rol_id: role.id,
+        correo_verificado: true,
+        estado: true,
+      },
+    });
+
+    return {
+      id: Number(socio.id),
+      nombre: `${socio.nombre} ${socio.apellido}`,
+      correo: socio.correo,
+      telefono: socio.telefono,
+      activo: socio.estado,
+    };
+  }
+
+  @Patch('members/:id')
+  @ApiOperation({ summary: 'Actualizar socio (cliente)' })
+  async updateMember(@Param('id') id: string, @Body() body: UpdateMemberDto) {
+    const existing = await this.prisma.usuarios.findUnique({
+      where: { id: BigInt(id) },
+      include: { roles: true },
+    });
+
+    if (!existing || existing.roles?.nombre !== 'Cliente') {
+      throw new NotFoundException('Socio no encontrado');
+    }
+
+    if (body.correo || body.numero_documento) {
+      const duplicate = await this.prisma.usuarios.findFirst({
+        where: {
+          id: { not: BigInt(id) },
+          OR: [
+            ...(body.correo ? [{ correo: body.correo }] : []),
+            ...(body.numero_documento
+              ? [{ numero_documento: body.numero_documento }]
+              : []),
+          ],
+        },
+      });
+
+      if (duplicate) {
+        const field =
+          duplicate.correo === body.correo ? 'correo' : 'número de documento';
+        throw new ConflictException(`El ${field} ya está registrado`);
+      }
+    }
+
+    const data: Prisma.usuariosUncheckedUpdateInput = {};
+    if (body.nombre !== undefined) data.nombre = body.nombre;
+    if (body.apellido !== undefined) data.apellido = body.apellido;
+    if (body.tipo_documento_id !== undefined)
+      data.tipo_documento_id = BigInt(body.tipo_documento_id);
+    if (body.numero_documento !== undefined)
+      data.numero_documento = body.numero_documento;
+    if (body.telefono !== undefined) data.telefono = body.telefono;
+    if (body.correo !== undefined) data.correo = body.correo;
+    if (body.password !== undefined) {
+      data.password_hash = await bcrypt.hash(body.password, 10);
+    }
+
+    const socio = await this.prisma.usuarios.update({
+      where: { id: BigInt(id) },
+      data,
+    });
+
+    return {
+      id: Number(socio.id),
+      nombre: `${socio.nombre} ${socio.apellido}`,
+      correo: socio.correo,
+      telefono: socio.telefono,
+      activo: socio.estado,
+    };
+  }
+
+  @Patch('members/:id/status')
+  @ApiOperation({ summary: 'Activar o desactivar socio (cliente)' })
+  async updateMemberStatus(
+    @Param('id') id: string,
+    @Body() body: UpdateMemberStatusDto,
+  ) {
+    const existing = await this.prisma.usuarios.findUnique({
+      where: { id: BigInt(id) },
+      include: { roles: true },
+    });
+
+    if (!existing || existing.roles?.nombre !== 'Cliente') {
+      throw new NotFoundException('Socio no encontrado');
+    }
+
+    const socio = await this.prisma.usuarios.update({
+      where: { id: BigInt(id) },
+      data: { estado: body.activo },
+    });
+
+    return { id: Number(socio.id), activo: socio.estado };
   }
 }
