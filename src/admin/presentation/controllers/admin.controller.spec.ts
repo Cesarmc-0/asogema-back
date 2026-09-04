@@ -114,7 +114,6 @@ describe('AdminController - Soft delete', () => {
     ['deleteRoomType', 'tipos_habitacion'],
     ['deleteRoom', 'habitaciones'],
     ['deleteMenuCategory', 'categorias_menu'],
-    ['deleteMenuProduct', 'productos_menu'],
   ])(
     '%s marca activo:false en vez de borrar el registro',
     async (methodName, model) => {
@@ -130,11 +129,22 @@ describe('AdminController - Soft delete', () => {
     },
   );
 
+  it('deleteMenuProduct marca activo:"inactivo" en vez de borrar el registro', async () => {
+    prisma.productos_menu.update.mockResolvedValue({ id: 1n });
+
+    const result = await controller.deleteMenuProduct(1);
+
+    expect(prisma.productos_menu.update).toHaveBeenCalledWith({
+      where: { id: 1n },
+      data: { activo: 'inactivo' },
+    });
+    expect(result).toEqual({ id: 1n });
+  });
+
   it.each([
     ['reactivateRoomType', 'tipos_habitacion'],
     ['reactivateRoom', 'habitaciones'],
     ['reactivateMenuCategory', 'categorias_menu'],
-    ['reactivateMenuProduct', 'productos_menu'],
   ])(
     '%s marca activo:true para reactivar el registro',
     async (methodName, model) => {
@@ -149,4 +159,16 @@ describe('AdminController - Soft delete', () => {
       expect(result).toEqual({ id: 1n });
     },
   );
+
+  it('reactivateMenuProduct marca activo:"activo" para reactivar el registro', async () => {
+    prisma.productos_menu.update.mockResolvedValue({ id: 1n });
+
+    const result = await controller.reactivateMenuProduct(1);
+
+    expect(prisma.productos_menu.update).toHaveBeenCalledWith({
+      where: { id: 1n },
+      data: { activo: 'activo' },
+    });
+    expect(result).toEqual({ id: 1n });
+  });
 });

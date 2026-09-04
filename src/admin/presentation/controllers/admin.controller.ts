@@ -488,7 +488,7 @@ export class AdminController {
     const products = await this.prisma.productos_menu.findMany({
       where: {
         ...(categoria_id ? { categoria_id: BigInt(categoria_id) } : {}),
-        ...(incluirInactivos === 'true' ? {} : { activo: true }),
+        ...(incluirInactivos === 'true' ? {} : { activo: 'activo' }),
       },
       include: { categorias_menu: { select: { nombre: true } } },
       orderBy: { nombre: 'asc' },
@@ -555,7 +555,7 @@ export class AdminController {
   async deleteMenuProduct(@Param('id') id: number) {
     return this.prisma.productos_menu.update({
       where: { id: BigInt(id) },
-      data: { activo: false },
+      data: { activo: 'inactivo' },
     });
   }
 
@@ -564,7 +564,7 @@ export class AdminController {
   async reactivateMenuProduct(@Param('id') id: number) {
     return this.prisma.productos_menu.update({
       where: { id: BigInt(id) },
-      data: { activo: true },
+      data: { activo: 'activo' },
     });
   }
 
