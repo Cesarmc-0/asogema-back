@@ -15,6 +15,14 @@ type EstadoPagoType {
   total: Float!
 }
 
+type ItemComandaType {
+  cantidad: Int!
+  imagen: String
+  nombre: String!
+  precio_unitario: Float!
+  producto_id: String!
+}
+
 type MiSaldoType {
   recargas: [RecargaType!]!
   saldo: Float!
@@ -33,6 +41,17 @@ type PagoType {
   id: String!
   metodo_pago: String!
   valor: Float!
+}
+
+type PedidoComandaType {
+  created_at: String!
+  estado: String!
+  id: String!
+  incluye_mesa: Boolean!
+  items: [ItemComandaType!]!
+  mesero: String!
+  tipo: String!
+  total: Float!
 }
 
 type PedidoOnlineType {
@@ -59,6 +78,9 @@ type Query {
   Reservas del usuario autenticado (hotel, eventos, restaurante y pedidos) con su estado de pago
   """
   misReservas: MisReservasType!
+
+  """Lista los pedidos de la comanda segun el rol"""
+  pedidosComanda: [PedidoComandaType!]!
 }
 
 type RecargaType {

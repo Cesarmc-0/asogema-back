@@ -45,6 +45,10 @@ const mockRestaurantRepo = {
   ),
 };
 
+const mockComandaGateway = {
+  notificarCambio: jest.fn(),
+};
+
 describe('CreatePedidoOnlineUseCase', () => {
   let useCase: CreatePedidoOnlineUseCase;
 
@@ -52,6 +56,7 @@ describe('CreatePedidoOnlineUseCase', () => {
     useCase = new CreatePedidoOnlineUseCase(
       mockPrisma as never,
       mockRestaurantRepo as never,
+      mockComandaGateway as never,
     );
     jest.clearAllMocks();
   });
@@ -77,6 +82,17 @@ describe('CreatePedidoOnlineUseCase', () => {
         impuestos: new Decimal(7600),
       }),
     );
+  });
+
+  it('notifica el cambio en el tablero tras crear el pedido', async () => {
+    await useCase.execute(10n, {
+      items: [{ producto_id: 1n, cantidad: 1 }],
+      tipo: 'PARA_LLEVAR',
+    });
+
+    expect(mockComandaGateway.notificarCambio).toHaveBeenCalledWith({
+      pedido_id: 50,
+    });
   });
 
   it('en mesa: agrega el cargo de mesa de $5.000', async () => {
