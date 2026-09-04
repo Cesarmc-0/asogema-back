@@ -245,7 +245,6 @@ describe('CreatePaymentUseCase', () => {
     expect(mockConfirmacionPagoService.finalizar).toHaveBeenCalledWith(
       100n,
       'EVENTO',
-      1n,
     );
     expect(mockPaymentGateway.createCheckoutSession).not.toHaveBeenCalled();
   });

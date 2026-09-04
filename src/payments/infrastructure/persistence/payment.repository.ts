@@ -23,6 +23,7 @@ export class PaymentRepositoryImpl implements PaymentRepository {
         total: data.total,
         estado: data.estado,
         reserva_id: data.reserva_id,
+        pedido_online_id: data.pedido_online_id,
         tipo_reserva: data.tipo_reserva,
         codigo_descuento: data.codigo_descuento,
         detalle_factura: {
@@ -183,10 +184,12 @@ export class PaymentRepositoryImpl implements PaymentRepository {
       return {};
     }
 
+    const pedidoId =
+      tipoReserva === 'RESTAURANTE' ? factura.pedido_online_id : null;
     const pedido =
-      tipoReserva === 'RESTAURANTE' && reservaId
+      pedidoId != null
         ? await this.prisma.pedidos_online.findUnique({
-            where: { id: reservaId },
+            where: { id: pedidoId },
             include: { detalle_pedido_online: true },
           })
         : null;
@@ -246,6 +249,7 @@ export class PaymentRepositoryImpl implements PaymentRepository {
       tipoReserva: string;
       reservaId: bigint | null;
       pedido: {
+        id: bigint;
         detalle_pedido_online: { producto_id: bigint; cantidad: number }[];
       } | null;
       factura: { usuario_id: bigint; total: Decimal };
@@ -280,15 +284,15 @@ export class PaymentRepositoryImpl implements PaymentRepository {
       );
     }
 
-    if (params.tipoReserva === 'RESTAURANTE' && params.reservaId) {
+    if (params.tipoReserva === 'RESTAURANTE' && params.pedido) {
       updates.push(
         client.pedidos_online.update({
-          where: { id: params.reservaId },
+          where: { id: params.pedido.id },
           data: { estado: 'CONFIRMADA' },
         }),
       );
 
-      for (const item of params.pedido?.detalle_pedido_online ?? []) {
+      for (const item of params.pedido.detalle_pedido_online ?? []) {
         updates.push(
           client.productos_menu.update({
             where: { id: item.producto_id },
