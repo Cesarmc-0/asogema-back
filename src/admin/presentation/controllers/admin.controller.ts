@@ -305,11 +305,20 @@ export class AdminController {
   @ApiQuery({ name: 'tipo_id', required: false, type: Number })
   @ApiQuery({ name: 'piso', required: false, type: Number })
   @ApiQuery({ name: 'incluir_inactivos', required: false, type: Boolean })
+  @ApiQuery({
+    name: 'fecha',
+    required: false,
+    type: String,
+    description:
+      'Disponibilidad por día (YYYY-MM-DD): agrega `disponible` por habitación',
+  })
   async getRooms(
     @Query('tipo_id') tipo_id?: number,
     @Query('piso') piso?: number,
     @Query('incluir_inactivos') incluirInactivos?: string,
+    @Query('fecha') fecha?: string,
   ) {
+    const dia = fecha !== undefined ? this.parseDayParam(fecha) : null;
     const rooms = await this.prisma.habitaciones.findMany({
       where: {
         ...(tipo_id && { tipo_habitacion_id: BigInt(tipo_id) }),
@@ -328,7 +337,54 @@ export class AdminController {
       },
       orderBy: { numero: 'asc' },
     });
-    return attachImagenes(this.prisma, 'habitacion', rooms);
+
+    if (!dia) {
+      return attachImagenes(this.prisma, 'habitacion', rooms);
+    }
+
+    // Una sola query agregada (sin N+1): habitaciones ocupadas ese día.
+    // Misma convención que GET /admin/hotel/occupancy (el día de checkout
+    // cuenta como ocupado) y excluyendo canceladas.
+    const ocupadas = await this.prisma.reservas_hotel.findMany({
+      where: {
+        fecha_entrada: { lte: dia },
+        fecha_salida: { gte: dia },
+        estado: { notIn: ['CANCELADA'] },
+      },
+      select: { habitacion_id: true },
+    });
+    const ocupadasIds = new Set(
+      ocupadas.map((r) => r.habitacion_id.toString()),
+    );
+    const withDisponibilidad = rooms.map((room) => ({
+      ...room,
+      disponible: !ocupadasIds.has(room.id.toString()),
+    }));
+    return attachImagenes(this.prisma, 'habitacion', withDisponibilidad);
+  }
+
+  /**
+   * Valida un día en formato YYYY-MM-DD y lo devuelve como Date local
+   * (medianoche). Lanza 400 si el formato es inválido.
+   */
+  private parseDayParam(fecha: string): Date {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha?.trim() ?? '');
+    if (!match) {
+      throw new BadRequestException(
+        'El parámetro "fecha" debe tener formato YYYY-MM-DD',
+      );
+    }
+    const dia = new Date(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+    );
+    if (Number.isNaN(dia.getTime())) {
+      throw new BadRequestException(
+        'El parámetro "fecha" debe tener formato YYYY-MM-DD',
+      );
+    }
+    return dia;
   }
 
   @Post('rooms')
@@ -576,8 +632,14 @@ export class AdminController {
   // ======================
   @Get('events/salons')
   @ApiOperation({ summary: 'Listar salones de eventos' })
-  async getEventSalons() {
+  @ApiQuery({ name: 'incluir_inactivos', required: false, type: Boolean })
+  async getEventSalons(@Query('incluir_inactivos') incluirInactivos?: string) {
     const salons = await this.prisma.salones.findMany({
+      where: {
+        ...(incluirInactivos === 'true'
+          ? {}
+          : { estado: { not: 'ELIMINADO' } }),
+      },
       orderBy: { nombre: 'asc' },
     });
     return attachImagenes(this.prisma, 'salon', salons);
@@ -637,10 +699,35 @@ export class AdminController {
   }
 
   @Delete('events/salons/:id')
-  @ApiOperation({ summary: 'Eliminar salón de eventos' })
+  @ApiOperation({ summary: 'Eliminar salón de eventos (soft delete)' })
   async deleteEventSalon(@Param('id') id: number) {
-    return this.prisma.salones.delete({
+    const existing = await this.prisma.salones.findUnique({
       where: { id: BigInt(id) },
+    });
+    if (!existing) {
+      throw new NotFoundException('Salón no encontrado');
+    }
+    // Borrado lógico vía estado: conserva las reservas históricas y el
+    // salón desaparece del listado público y de nuevas reservas (el flujo
+    // de eventos exige estado DISPONIBLE). Sin CHECK que limite el valor.
+    return this.prisma.salones.update({
+      where: { id: BigInt(id) },
+      data: { estado: 'ELIMINADO' },
+    });
+  }
+
+  @Patch('events/salons/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivar salón de eventos' })
+  async reactivateEventSalon(@Param('id') id: number) {
+    const existing = await this.prisma.salones.findUnique({
+      where: { id: BigInt(id) },
+    });
+    if (!existing) {
+      throw new NotFoundException('Salón no encontrado');
+    }
+    return this.prisma.salones.update({
+      where: { id: BigInt(id) },
+      data: { estado: 'DISPONIBLE' },
     });
   }
 
@@ -1011,6 +1098,75 @@ export class AdminController {
         estado: r.estado,
         telefono: r.usuarios.telefono,
         salon: r.salones?.nombre ?? null,
+      })),
+    };
+  }
+
+  // ======================
+  // RESERVAS (LISTADO COMPLETO)
+  // ======================
+  @Get('reservations')
+  @ApiOperation({
+    summary: 'Listado completo de reservas (hotel, restaurante, eventos)',
+  })
+  async getAllReservations() {
+    const [hoteles, restaurantes, eventos] = await Promise.all([
+      this.prisma.reservas_hotel.findMany({
+        include: {
+          usuarios: {
+            select: { nombre: true, apellido: true, telefono: true },
+          },
+          habitaciones: { select: { numero: true } },
+        },
+      }),
+      this.prisma.reservas_restaurante.findMany({
+        include: {
+          usuarios: {
+            select: { nombre: true, apellido: true, telefono: true },
+          },
+          mesas: { select: { numero: true } },
+        },
+      }),
+      this.prisma.reservas_evento.findMany({
+        include: {
+          usuarios: {
+            select: { nombre: true, apellido: true, telefono: true },
+          },
+          salones: { select: { nombre: true } },
+        },
+      }),
+    ]);
+
+    return {
+      hotel: hoteles.map((r) => ({
+        id: Number(r.id),
+        cliente: `${r.usuarios.nombre} ${r.usuarios.apellido}`,
+        habitacion: r.habitaciones?.numero ?? null,
+        cantidad_huespedes: r.cantidad_huespedes,
+        estado: r.estado,
+        telefono: r.usuarios.telefono,
+        fecha_entrada: this.fmtDate(r.fecha_entrada),
+        fecha_salida: this.fmtDate(r.fecha_salida),
+      })),
+      restaurante: restaurantes.map((r) => ({
+        id: Number(r.id),
+        cliente: `${r.usuarios.nombre} ${r.usuarios.apellido}`,
+        hora: this.fmtTime(r.hora),
+        cantidad_personas: r.cantidad_personas,
+        estado: r.estado,
+        telefono: r.usuarios.telefono,
+        mesa: r.mesas?.numero ?? null,
+        fecha: this.fmtDate(r.fecha),
+      })),
+      eventos: eventos.map((r) => ({
+        id: Number(r.id),
+        cliente: `${r.usuarios.nombre} ${r.usuarios.apellido}`,
+        hora_inicio: this.fmtTime(r.hora_inicio),
+        cantidad_personas: r.cantidad_personas,
+        estado: r.estado,
+        telefono: r.usuarios.telefono,
+        salon: r.salones?.nombre ?? null,
+        fecha: this.fmtDate(r.fecha),
       })),
     };
   }
@@ -1418,6 +1574,16 @@ export class AdminController {
     @Body() body: CreateTaskDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    const assignee = await this.prisma.usuarios.findUnique({
+      where: { id: BigInt(body.asignado_a) },
+      include: { roles: true },
+    });
+    if (!assignee || assignee.estado === false) {
+      throw new BadRequestException(
+        'No se puede asignar una tarea a un empleado desactivado',
+      );
+    }
+
     const tarea = await this.prisma.tareas.create({
       data: {
         titulo: body.titulo,
@@ -1465,8 +1631,18 @@ export class AdminController {
         : null;
     if (body.estado !== undefined) data.estado = body.estado;
     if (body.prioridad !== undefined) data.prioridad = body.prioridad;
-    if (body.asignado_a !== undefined)
+    if (body.asignado_a !== undefined) {
+      const assignee = await this.prisma.usuarios.findUnique({
+        where: { id: BigInt(body.asignado_a) },
+        include: { roles: true },
+      });
+      if (!assignee || assignee.estado === false) {
+        throw new BadRequestException(
+          'No se puede asignar una tarea a un empleado desactivado',
+        );
+      }
       data.asignado_a = BigInt(body.asignado_a);
+    }
 
     const tarea = await this.prisma.tareas.update({
       where: { id: BigInt(id) },
@@ -1554,12 +1730,11 @@ export class AdminController {
   // EMPLEADOS
   // ======================
   @Get('employees')
-  @ApiOperation({ summary: 'Listar todos los empleados' })
+  @ApiOperation({ summary: 'Listar todos los empleados (activos e inactivos)' })
   async getEmployees() {
     const empleados = await this.prisma.usuarios.findMany({
       where: {
         roles: { nombre: 'Empleado' },
-        estado: true,
       },
       select: {
         id: true,
@@ -1567,6 +1742,7 @@ export class AdminController {
         apellido: true,
         correo: true,
         telefono: true,
+        estado: true,
       },
       orderBy: { nombre: 'asc' },
     });
@@ -1576,6 +1752,7 @@ export class AdminController {
       nombre: `${e.nombre} ${e.apellido}`,
       correo: e.correo,
       telefono: e.telefono,
+      estado: e.estado,
     }));
   }
 
@@ -1735,16 +1912,35 @@ export class AdminController {
     return { deleted: true, id };
   }
 
+  @Patch('employees/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivar empleado (soft reactivate)' })
+  async reactivateEmployee(@Param('id') id: string) {
+    const existing = await this.prisma.usuarios.findUnique({
+      where: { id: BigInt(id) },
+      include: { roles: true },
+    });
+
+    if (!existing || existing.roles?.nombre !== 'Empleado') {
+      throw new NotFoundException('Empleado no encontrado');
+    }
+
+    await this.prisma.usuarios.update({
+      where: { id: BigInt(id) },
+      data: { estado: true },
+    });
+
+    return { reactivated: true, id };
+  }
+
   // ======================
   // SOCIOS (MEMBERS)
   // ======================
   @Get('members')
-  @ApiOperation({ summary: 'Listar socios (clientes)' })
+  @ApiOperation({ summary: 'Listar socios (clientes, activos e inactivos)' })
   async getMembers() {
     const socios = await this.prisma.usuarios.findMany({
       where: {
         roles: { nombre: 'Cliente' },
-        estado: true,
       },
       select: {
         id: true,
@@ -1752,6 +1948,9 @@ export class AdminController {
         apellido: true,
         correo: true,
         telefono: true,
+        estado: true,
+        tipo_documento_id: true,
+        numero_documento: true,
       },
       orderBy: { nombre: 'asc' },
     });
@@ -1761,12 +1960,24 @@ export class AdminController {
       nombre: `${s.nombre} ${s.apellido}`,
       correo: s.correo,
       telefono: s.telefono,
+      activo: s.estado,
+      tipo_documento_id: Number(s.tipo_documento_id),
+      numero_documento: s.numero_documento,
     }));
   }
 
   @Get('members/:id')
   @ApiOperation({ summary: 'Detalle de socio con reservas y facturas' })
-  async getMemberDetail(@Param('id') id: number) {
+  async getMemberDetail(@Param('id') id: string) {
+    const usuario = await this.prisma.usuarios.findUnique({
+      where: { id: BigInt(id) },
+      include: { roles: true },
+    });
+
+    if (!usuario || usuario.roles?.nombre !== 'Cliente') {
+      throw new NotFoundException('Socio no encontrado');
+    }
+
     const [reservasHotel, reservasRestaurante, reservasEvento, facturas] =
       await Promise.all([
         this.prisma.reservas_hotel.findMany({
@@ -1815,6 +2026,16 @@ export class AdminController {
       ]);
 
     return {
+      usuario: {
+        id: Number(usuario.id),
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        correo: usuario.correo,
+        telefono: usuario.telefono,
+        tipo_documento_id: Number(usuario.tipo_documento_id),
+        numero_documento: usuario.numero_documento,
+        activo: usuario.estado,
+      },
       reservas_hotel: reservasHotel.map((r) => ({
         id: Number(r.id),
         entrada: this.fmtDate(r.fecha_entrada),
