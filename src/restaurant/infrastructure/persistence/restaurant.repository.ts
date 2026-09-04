@@ -18,7 +18,7 @@ export class RestaurantRepositoryImpl implements RestaurantRepository {
       where: { estado: true, activo: true },
       include: {
         productos_menu: {
-          where: { estado: true, activo: true },
+          where: { activo: true },
           orderBy: { nombre: 'asc' },
         },
       },

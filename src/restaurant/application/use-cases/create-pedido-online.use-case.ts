@@ -39,7 +39,7 @@ export class CreatePedidoOnlineUseCase {
     let baseIva = 0;
     const items = dto.items.map((item) => {
       const producto = productos.find((p) => p.id === item.producto_id);
-      if (!producto || !producto.estado) {
+      if (!producto || !producto.activo) {
         throw new BadRequestException(
           'Uno o más productos no están disponibles',
         );
