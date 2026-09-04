@@ -73,6 +73,7 @@ model facturas {
   factus_id        String?           @db.VarChar(100)
   qr_url           String?
   reserva_id       BigInt?
+  pedido_online_id BigInt?
   tipo_reserva     String?           @db.VarChar(20)
   codigo_descuento String?           @db.VarChar(50)
   detalle_factura  detalle_factura[]

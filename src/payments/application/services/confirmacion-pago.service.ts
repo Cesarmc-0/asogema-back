@@ -15,15 +15,17 @@ export class ConfirmacionPagoService {
     private readonly qrQueue: QrQueueService,
   ) {}
 
-  async finalizar(
-    facturaId: bigint,
-    tipoReserva: string,
-    reservaId: bigint | null,
-  ): Promise<void> {
+  async finalizar(facturaId: bigint, tipoReserva: string): Promise<void> {
     await this.sendPurchaseReceipt(facturaId);
 
-    if (tipoReserva === 'RESTAURANTE' && reservaId) {
-      await this.qrQueue.enqueueGenerarQr(reservaId);
+    if (tipoReserva === 'RESTAURANTE') {
+      const factura = await this.prisma.facturas.findUnique({
+        where: { id: facturaId },
+        select: { pedido_online_id: true },
+      });
+      if (factura?.pedido_online_id != null) {
+        await this.qrQueue.enqueueGenerarQr(factura.pedido_online_id);
+      }
     }
 
     await this.facturaQueue.enqueueGenerarFactura(facturaId);
