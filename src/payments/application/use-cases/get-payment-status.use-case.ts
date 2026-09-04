@@ -27,9 +27,11 @@ export class GetPaymentStatusUseCase {
     }
 
     let qr_pedido: string | null = null;
-    if (factura.tipo_reserva === 'RESTAURANTE' && factura.reserva_id) {
+    const pedidoId =
+      factura.tipo_reserva === 'RESTAURANTE' ? factura.pedido_online_id : null;
+    if (pedidoId != null) {
       const pedido = await this.prisma.pedidos_online.findUnique({
-        where: { id: factura.reserva_id },
+        where: { id: pedidoId },
         select: { qr_url: true },
       });
       qr_pedido = pedido?.qr_url ?? null;
@@ -43,7 +45,10 @@ export class GetPaymentStatusUseCase {
       cufe: factura.cufe,
       qr_url: factura.qr_url,
       tipo_reserva: factura.tipo_reserva,
-      reserva_id: factura.reserva_id,
+      reserva_id:
+        factura.tipo_reserva === 'RESTAURANTE'
+          ? factura.pedido_online_id
+          : factura.reserva_id,
       qr_pedido,
       pagos: factura.pagos.map((p) => ({
         id: p.id,

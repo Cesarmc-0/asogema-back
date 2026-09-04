@@ -1,14 +1,14 @@
 import { Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { EmailJob, EmailJobData } from '../domain/email-sender.interface';
-import { NodemailerMailer } from '../infrastructure/nodemailer-mailer';
+import { ResendMailer } from '../infrastructure/resend-mailer';
 import { EMAIL_QUEUE } from './notification.service';
 
 @Processor(EMAIL_QUEUE)
 export class EmailQueueProcessor extends WorkerHost {
   private readonly logger = new Logger(EmailQueueProcessor.name);
 
-  constructor(private readonly mailer: NodemailerMailer) {
+  constructor(private readonly mailer: ResendMailer) {
     super();
   }
 

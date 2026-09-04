@@ -72,7 +72,12 @@ export class CreatePaymentUseCase {
       descuentos: new Decimal(descuento),
       total: new Decimal(total),
       estado: 'PENDIENTE',
-      reserva_id: origen.reservaId ?? dto.reserva_id ?? null,
+      reserva_id:
+        dto.tipo_reserva === 'RESTAURANTE'
+          ? null
+          : (origen.reservaId ?? dto.reserva_id ?? null),
+      pedido_online_id:
+        dto.tipo_reserva === 'RESTAURANTE' ? (dto.reserva_id ?? null) : null,
       tipo_reserva: dto.tipo_reserva,
       codigo_descuento: dto.codigo_descuento ?? null,
       descripcion_detalle: origen.descripcion,
@@ -237,11 +242,7 @@ export class CreatePaymentUseCase {
       true,
     );
 
-    await this.confirmacionPagoService.finalizar(
-      facturaId,
-      dto.tipo_reserva,
-      origen.reservaId ?? dto.reserva_id ?? null,
-    );
+    await this.confirmacionPagoService.finalizar(facturaId, dto.tipo_reserva);
 
     this.logger.log(
       `Pago con saldo OK: tipo=${dto.tipo_reserva}, factura=${facturaId}, saldo restante=${saldo_restante}`,

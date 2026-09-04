@@ -23,6 +23,8 @@ export interface ReservaOrigen {
   descripcion: string;
   resumen: Record<string, unknown>;
   reservaId: bigint | null;
+  /** ID del pedido online (origen restaurante-comanda) cuando aplica. */
+  pedidoOnlineId?: bigint | null;
   /** IVA ya calculado del origen (restaurante: por producto con aplica_iva). */
   impuestos?: number;
 }
@@ -142,6 +144,7 @@ export class PaymentOriginResolver {
         items: pedido.detalle_pedido_online.length,
       },
       reservaId: null,
+      pedidoOnlineId: pedido.id,
     };
   }
 

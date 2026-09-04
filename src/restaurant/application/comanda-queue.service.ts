@@ -15,9 +15,16 @@ export class ComandaQueueService {
       await this.queue.add(
         'notificar-listo',
         { pedido_id: pedidoId, mesero_id: meseroId },
-        { attempts: 3, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true },
+        {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+          removeOnComplete: true,
+        },
       );
     } catch (error) {
-      this.logger.error(`No se pudo encolar notificacion pedido ${pedidoId}: ${error instanceof Error ? error.message : 'error'}`);
+      this.logger.error(
+        `No se pudo encolar notificacion pedido ${pedidoId}: ${error instanceof Error ? error.message : 'error'}`,
+      );
     }
-  }}
+  }
+}

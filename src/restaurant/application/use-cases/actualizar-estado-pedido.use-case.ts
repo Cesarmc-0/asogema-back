@@ -7,11 +7,7 @@ import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.se
 import { ComandaQueueService } from '../comanda-queue.service';
 import { ComandaGateway } from 'src/restaurant/infrastructure/gateways/comanda.gateway';
 
-export const ESTADOS_PEDIDO = [
-  'RECIBIDO',
-  'LISTO',
-  'ENTREGADO',
-] as const;
+export const ESTADOS_PEDIDO = ['RECIBIDO', 'LISTO', 'ENTREGADO'] as const;
 export type EstadoPedido = (typeof ESTADOS_PEDIDO)[number];
 
 const SIGUIENTE_ESTADO: Record<EstadoPedido, EstadoPedido | null> = {

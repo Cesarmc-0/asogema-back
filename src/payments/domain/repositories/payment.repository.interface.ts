@@ -8,6 +8,7 @@ export interface CreateFacturaInput {
   total: Decimal;
   estado: string;
   reserva_id: bigint | null;
+  pedido_online_id: bigint | null;
   tipo_reserva: string;
   codigo_descuento: string | null;
   descripcion_detalle: string;
@@ -35,6 +36,7 @@ export interface FacturaWithPagos {
   cufe: string | null;
   qr_url: string | null;
   reserva_id: bigint | null;
+  pedido_online_id: bigint | null;
   tipo_reserva: string | null;
   created_at: Date | null;
   pagos: {

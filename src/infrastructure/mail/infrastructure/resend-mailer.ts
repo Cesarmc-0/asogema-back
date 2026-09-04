@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { createTransport, Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import * as handlebars from 'handlebars';
@@ -31,25 +31,15 @@ const SUBJECTS: Record<string, string> = {
 };
 
 @Injectable()
-export class NodemailerMailer extends EmailSender {
-  private readonly logger = new Logger(NodemailerMailer.name);
-  private readonly transporter: Transporter;
+export class ResendMailer extends EmailSender {
+  private readonly logger = new Logger(ResendMailer.name);
+  private readonly resend: Resend;
   private readonly from: string;
 
   constructor() {
     super();
-    this.from = process.env.MAIL_FROM ?? 'Asogema <no-reply@asogema.com>';
-    const host = process.env.MAIL_HOST ?? 'smtp.gmail.com';
-    const port = Number(process.env.MAIL_PORT ?? 587);
-    const user = process.env.MAIL_USER;
-    const pass = process.env.MAIL_PASS;
-
-    this.transporter = createTransport({
-      host,
-      port,
-      secure: false,
-      auth: user && pass ? { user, pass } : undefined,
-    });
+    this.from = process.env.RESEND_FROM ?? 'Asogema <no-reply@asogema.com>';
+    this.resend = new Resend(process.env.RESEND_API_KEY);
   }
 
   async sendWelcomeVerification(
@@ -77,16 +67,25 @@ export class NodemailerMailer extends EmailSender {
     const templateName = TEMPLATE_NAMES[type];
     const subject = SUBJECTS[type];
     const html = this.render(templateName, payload);
+    const to = String((payload as { correo: string }).correo);
 
-    const info = (await this.transporter.sendMail({
+    const { data, error } = await this.resend.emails.send({
       from: this.from,
-      to: String((payload as { correo: string }).correo),
+      to,
       subject,
       html,
-    })) as { messageId?: string };
+    });
+
+    if (error) {
+      throw new Error(
+        `Resend falló al enviar ${type} a ${to}: ${
+          error.name ?? 'error'
+        } - ${error.message}`,
+      );
+    }
 
     this.logger.log(
-      `Correo ${type} -> ${String((payload as { correo: string }).correo)} (id: ${info.messageId})`,
+      `Correo ${type} -> ${to} (id: ${data?.id ?? 'desconocido'})`,
     );
   }
 

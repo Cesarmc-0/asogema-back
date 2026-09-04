@@ -105,7 +105,6 @@ export class HandleWebhookUseCase {
       await this.confirmacionPagoService.finalizar(
         pago.factura_id,
         factura?.tipo_reserva ?? '',
-        factura?.reserva_id ?? null,
       );
     } else {
       await this.paymentRepo.cancelarPagoCompleto(

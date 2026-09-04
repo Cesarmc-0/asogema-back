@@ -11,8 +11,13 @@ export class ComandaQueueProcessor extends WorkerHost {
 
   async process(job: Job): Promise<void> {
     if (job.name === 'notificar-listo') {
-      const { pedido_id, mesero_id } = job.data as { pedido_id: number; mesero_id: number };
-      this.comandaGateway.notificarPedidoListo({ pedido_id, mesero_id });
+      const { pedido_id, mesero_id } = job.data as {
+        pedido_id: number;
+        mesero_id: number;
+      };
+      await Promise.resolve(
+        this.comandaGateway.notificarPedidoListo({ pedido_id, mesero_id }),
+      );
     }
   }
 }
