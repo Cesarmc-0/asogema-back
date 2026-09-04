@@ -12,7 +12,7 @@ export class GetMenuUseCase {
       where: { estado: true, activo: true },
       include: {
         productos_menu: {
-          where: { activo: true },
+          where: { activo: 'activo' },
           orderBy: { nombre: 'asc' },
         },
       },
