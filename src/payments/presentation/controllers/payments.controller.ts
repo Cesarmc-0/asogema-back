@@ -17,6 +17,7 @@ import { DescargarFacturaPdfUseCase } from 'src/payments/application/use-cases/d
 import { VerifyPaymentUseCase } from 'src/payments/application/use-cases/verify-payment.use-case';
 import { ValidarCuponUseCase } from 'src/payments/application/use-cases/validar-cupon.use-case';
 import { ObtenerInstitucionesFinancierasUseCase } from 'src/payments/application/use-cases/obtener-instituciones-financieras.use-case';
+import { ObtenerMisFacturasUseCase } from 'src/payments/application/use-cases/obtener-mis-facturas.use-case';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
 import { VerifyPaymentDto } from '../dto/verify-payment.dto';
 import { CurrentUser } from 'src/auth/presentation/dto/decorators/current-user.decorator';
@@ -34,6 +35,7 @@ export class PaymentsController {
     private readonly verifyPaymentUseCase: VerifyPaymentUseCase,
     private readonly validarCuponUseCase: ValidarCuponUseCase,
     private readonly institucionesUseCase: ObtenerInstitucionesFinancierasUseCase,
+    private readonly misFacturasUseCase: ObtenerMisFacturasUseCase,
   ) {}
 
   @ApiBearerAuth()
@@ -95,6 +97,14 @@ export class PaymentsController {
       dto.transaction_id,
       BigInt(user.id),
     );
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Historial de facturas del usuario autenticado' })
+  @UseGuards(AuthGuard('jwt'))
+  @Get('mis-facturas')
+  async misFacturas(@CurrentUser() user: AuthenticatedUser) {
+    return this.misFacturasUseCase.execute(BigInt(user.id));
   }
 
   @ApiBearerAuth()

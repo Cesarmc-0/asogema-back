@@ -23,6 +23,7 @@ export class PaymentRepositoryImpl implements PaymentRepository {
         total: data.total,
         estado: data.estado,
         reserva_id: data.reserva_id,
+        pedido_online_id: data.pedido_online_id,
         tipo_reserva: data.tipo_reserva,
         codigo_descuento: data.codigo_descuento,
         detalle_factura: {
@@ -183,16 +184,18 @@ export class PaymentRepositoryImpl implements PaymentRepository {
       return {};
     }
 
+    const pedidoId =
+      tipoReserva === 'RESTAURANTE' ? factura.pedido_online_id : null;
     const pedido =
-      tipoReserva === 'RESTAURANTE' && reservaId
+      pedidoId != null
         ? await this.prisma.pedidos_online.findUnique({
-            where: { id: reservaId },
+            where: { id: pedidoId },
             include: { detalle_pedido_online: true },
           })
         : null;
 
-    return this.prisma.$transaction(async (tx) => {
-      if (cobrarConSaldo) {
+    if (cobrarConSaldo) {
+      return this.prisma.$transaction(async (tx) => {
         const saldo = await tx.saldos_usuario.findUnique({
           where: { usuario_id: factura.usuario_id },
         });
@@ -209,78 +212,33 @@ export class PaymentRepositoryImpl implements PaymentRepository {
           where: { usuario_id: factura.usuario_id },
           data: { saldo: { decrement: total } },
         });
-      }
 
-      await tx.pagos.update({
-        where: { id: pagoId },
-        data: { estado: 'CONFIRMADO' },
-      });
-
-      await tx.facturas.update({
-        where: { id: facturaId },
-        data: { estado: 'PAGADA' },
-      });
-
-      if (tipoReserva === 'EVENTO' && reservaId) {
-        await tx.reservas_evento.update({
-          where: { id: reservaId },
-          data: { estado: 'CONFIRMADA' },
-        });
-      }
-
-      if (tipoReserva === 'HOTEL' && reservaId) {
-        await tx.reservas_hotel.update({
-          where: { id: reservaId },
-          data: { estado: 'CONFIRMADA' },
-        });
-      }
-
-      if (tipoReserva === 'RESTAURANTE' && reservaId) {
-        await tx.pedidos_online.update({
-          where: { id: reservaId },
-          data: { estado: 'CONFIRMADA' },
-        });
-
-        for (const item of pedido?.detalle_pedido_online ?? []) {
-          const res = await tx.productos_menu.updateMany({
-            where: { id: item.producto_id, stock: { gte: item.cantidad } },
-            data: { stock: { decrement: item.cantidad } },
-          });
-          if (res.count === 0) {
-            throw new BadRequestException(
-              `Stock insuficiente para el producto ${item.producto_id}`,
-            );
-          }
+        for (const update of this.construirActualizaciones(tx, {
+          pagoId,
+          facturaId,
+          tipoReserva,
+          reservaId,
+          pedido,
+          factura,
+        })) {
+          await update;
         }
-      }
 
-      if (tipoReserva === 'RECARGA' && reservaId) {
-        await tx.saldos_usuario.upsert({
-          where: { usuario_id: factura.usuario_id },
-          create: {
-            usuario_id: factura.usuario_id,
-            saldo: factura.total,
-          },
-          update: {
-            saldo: { increment: factura.total },
-          },
-        });
-        await tx.saldo_recargas.update({
-          where: { id: reservaId },
-          data: { estado: 'CONFIRMADO', factura_id: facturaId },
-        });
-      }
+        return { saldo_restante: disponible - total };
+      });
+    }
 
-      if (cobrarConSaldo) {
-        const saldo = await tx.saldos_usuario.findUnique({
-          where: { usuario_id: factura.usuario_id },
-        });
-        const disponible = Number(saldo?.saldo ?? 0);
-        return { saldo_restante: disponible };
-      }
-
-      return {};
-    });
+    await this.prisma.$transaction(
+      this.construirActualizaciones(this.prisma, {
+        pagoId,
+        facturaId,
+        tipoReserva,
+        reservaId,
+        pedido,
+        factura,
+      }),
+    );
+    return {};
   }
 
   private construirActualizaciones(
@@ -291,6 +249,7 @@ export class PaymentRepositoryImpl implements PaymentRepository {
       tipoReserva: string;
       reservaId: bigint | null;
       pedido: {
+        id: bigint;
         detalle_pedido_online: { producto_id: bigint; cantidad: number }[];
       } | null;
       factura: { usuario_id: bigint; total: Decimal };
@@ -325,15 +284,15 @@ export class PaymentRepositoryImpl implements PaymentRepository {
       );
     }
 
-    if (params.tipoReserva === 'RESTAURANTE' && params.reservaId) {
+    if (params.tipoReserva === 'RESTAURANTE' && params.pedido) {
       updates.push(
         client.pedidos_online.update({
-          where: { id: params.reservaId },
+          where: { id: params.pedido.id },
           data: { estado: 'CONFIRMADA' },
         }),
       );
 
-      for (const item of params.pedido?.detalle_pedido_online ?? []) {
+      for (const item of params.pedido.detalle_pedido_online ?? []) {
         updates.push(
           client.productos_menu.update({
             where: { id: item.producto_id },

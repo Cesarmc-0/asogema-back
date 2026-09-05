@@ -11,7 +11,7 @@ const productos = [
     nombre: 'Hamburguesa',
     precio: new Decimal(20000),
     stock: 10,
-    estado: true,
+    activo: 'activo',
     aplica_iva: true,
   },
   {
@@ -19,7 +19,7 @@ const productos = [
     nombre: 'Gaseosa',
     precio: new Decimal(5000),
     stock: 3,
-    estado: true,
+    activo: 'activo',
     aplica_iva: false,
   },
 ];
@@ -82,6 +82,17 @@ describe('CreatePedidoOnlineUseCase', () => {
         impuestos: new Decimal(7600),
       }),
     );
+  });
+
+  it('notifica el cambio en el tablero tras crear el pedido', async () => {
+    await useCase.execute(10n, {
+      items: [{ producto_id: 1n, cantidad: 1 }],
+      tipo: 'PARA_LLEVAR',
+    });
+
+    expect(mockComandaGateway.notificarCambio).toHaveBeenCalledWith({
+      pedido_id: 50,
+    });
   });
 
   it('en mesa: agrega el cargo de mesa de $5.000', async () => {

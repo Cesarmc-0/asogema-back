@@ -128,7 +128,6 @@ describe('HandleWebhookUseCase', () => {
     expect(mockConfirmacionPagoService.finalizar).toHaveBeenCalledWith(
       100n,
       'EVENTO',
-      1n,
     );
   });
 
@@ -203,7 +202,6 @@ describe('HandleWebhookUseCase', () => {
     expect(mockConfirmacionPagoService.finalizar).toHaveBeenCalledWith(
       100n,
       'RESTAURANTE',
-      7n,
     );
   });
 
@@ -232,7 +230,6 @@ describe('HandleWebhookUseCase', () => {
     expect(mockConfirmacionPagoService.finalizar).toHaveBeenCalledWith(
       100n,
       'RECARGA',
-      9n,
     );
   });
 
