@@ -45,6 +45,10 @@ const mockRestaurantRepo = {
   ),
 };
 
+const mockComandaGateway = {
+  notificarCambio: jest.fn(),
+};
+
 describe('CreatePedidoOnlineUseCase', () => {
   let useCase: CreatePedidoOnlineUseCase;
 
@@ -52,6 +56,7 @@ describe('CreatePedidoOnlineUseCase', () => {
     useCase = new CreatePedidoOnlineUseCase(
       mockPrisma as never,
       mockRestaurantRepo as never,
+      mockComandaGateway as never,
     );
     jest.clearAllMocks();
   });

@@ -4,37 +4,53 @@ import { ActualizarEstadoPedidoUseCase } from './actualizar-estado-pedido.use-ca
 const mockPrisma = {
   pedidos_online: {
     findUnique: jest.fn(),
-    update: jest.fn(),
+    update: jest.fn().mockResolvedValue({}),
   },
+};
+
+const mockComandaQueue = {
+  enqueuePedidoListo: jest.fn().mockResolvedValue(undefined),
+};
+
+const mockComandaGateway = {
+  notificarCambio: jest.fn(),
 };
 
 describe('ActualizarEstadoPedidoUseCase', () => {
   let useCase: ActualizarEstadoPedidoUseCase;
 
   beforeEach(() => {
-    useCase = new ActualizarEstadoPedidoUseCase(mockPrisma as never);
+    useCase = new ActualizarEstadoPedidoUseCase(
+      mockPrisma as never,
+      mockComandaQueue as never,
+      mockComandaGateway as never,
+    );
     jest.clearAllMocks();
   });
 
-  it('avanza PENDIENTE → EN_PREPARACION', async () => {
+  it('avanza RECIBIDO → LISTO', async () => {
     mockPrisma.pedidos_online.findUnique.mockResolvedValueOnce({
       id: 1n,
-      estado: 'PENDIENTE',
+      estado: 'RECIBIDO',
+      usuario_id: 10n,
     });
 
-    const result = await useCase.execute(1n, 'EN_PREPARACION');
+    const result = await useCase.execute(1n, 'LISTO');
 
-    expect(result).toEqual({ pedido_id: 1n, estado: 'EN_PREPARACION' });
+    expect(result).toEqual({ pedido_id: 1n, estado: 'LISTO' });
     expect(mockPrisma.pedidos_online.update).toHaveBeenCalledWith({
       where: { id: 1n },
-      data: { estado: 'EN_PREPARACION' },
+      data: { estado: 'LISTO' },
     });
+    expect(mockComandaQueue.enqueuePedidoListo).toHaveBeenCalledWith(1, 10);
+    expect(mockComandaGateway.notificarCambio).toHaveBeenCalledWith({ pedido_id: 1 });
   });
 
-  it('avanza EN_PREPARACION → ENTREGADO', async () => {
+  it('avanza LISTO → ENTREGADO', async () => {
     mockPrisma.pedidos_online.findUnique.mockResolvedValueOnce({
       id: 1n,
-      estado: 'EN_PREPARACION',
+      estado: 'LISTO',
+      usuario_id: 10n,
     });
 
     const result = await useCase.execute(1n, 'ENTREGADO');
@@ -42,10 +58,11 @@ describe('ActualizarEstadoPedidoUseCase', () => {
     expect(result.estado).toBe('ENTREGADO');
   });
 
-  it('no permite saltarse estados (PENDIENTE → ENTREGADO)', async () => {
+  it('no permite saltarse estados (RECIBIDO → ENTREGADO)', async () => {
     mockPrisma.pedidos_online.findUnique.mockResolvedValueOnce({
       id: 1n,
-      estado: 'PENDIENTE',
+      estado: 'RECIBIDO',
+      usuario_id: 10n,
     });
 
     await expect(useCase.execute(1n, 'ENTREGADO')).rejects.toThrow(
@@ -54,13 +71,14 @@ describe('ActualizarEstadoPedidoUseCase', () => {
     expect(mockPrisma.pedidos_online.update).not.toHaveBeenCalled();
   });
 
-  it('no permite retroceder (ENTREGADO → EN_PREPARACION)', async () => {
+  it('no permite retroceder (ENTREGADO → LISTO)', async () => {
     mockPrisma.pedidos_online.findUnique.mockResolvedValueOnce({
       id: 1n,
       estado: 'ENTREGADO',
+      usuario_id: 10n,
     });
 
-    await expect(useCase.execute(1n, 'EN_PREPARACION')).rejects.toThrow(
+    await expect(useCase.execute(1n, 'LISTO')).rejects.toThrow(
       BadRequestException,
     );
   });
@@ -68,12 +86,13 @@ describe('ActualizarEstadoPedidoUseCase', () => {
   it('es idempotente: repetir el mismo estado no actualiza', async () => {
     mockPrisma.pedidos_online.findUnique.mockResolvedValueOnce({
       id: 1n,
-      estado: 'EN_PREPARACION',
+      estado: 'LISTO',
+      usuario_id: 10n,
     });
 
-    const result = await useCase.execute(1n, 'EN_PREPARACION');
+    const result = await useCase.execute(1n, 'LISTO');
 
-    expect(result.estado).toBe('EN_PREPARACION');
+    expect(result.estado).toBe('LISTO');
     expect(mockPrisma.pedidos_online.update).not.toHaveBeenCalled();
   });
 
