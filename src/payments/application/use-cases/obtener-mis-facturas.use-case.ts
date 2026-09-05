@@ -36,9 +36,7 @@ export class ObtenerMisFacturasUseCase {
       facturas: facturas.map((f) => ({
         factura_id: f.id,
         reserva_id:
-          f.tipo_reserva === 'RESTAURANTE'
-            ? f.pedido_online_id
-            : f.reserva_id,
+          f.tipo_reserva === 'RESTAURANTE' ? f.pedido_online_id : f.reserva_id,
         tipo_reserva: f.tipo_reserva,
         fecha_factura: f.fecha_factura,
         estado: f.estado,

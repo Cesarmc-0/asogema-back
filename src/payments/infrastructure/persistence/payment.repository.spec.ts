@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { PaymentRepositoryImpl } from './payment.repository';
 import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 
@@ -15,10 +16,25 @@ const mockPrismaService = {
   saldo_recargas: {
     updateMany: jest.fn(),
     findFirst: jest.fn(),
+    update: jest.fn(),
   },
   saldos_usuario: {
     upsert: jest.fn(),
     findUnique: jest.fn(),
+    update: jest.fn(),
+  },
+  pedidos_online: {
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
+  productos_menu: {
+    update: jest.fn(),
+    updateMany: jest.fn(),
+  },
+  reservas_evento: {
+    update: jest.fn(),
+  },
+  reservas_hotel: {
     update: jest.fn(),
   },
   $transaction: jest.fn(mockTransaction),
@@ -95,6 +111,47 @@ describe('PaymentRepositoryImpl', () => {
         where: { usuario_id: 1n },
         create: { usuario_id: 1n, saldo: 0 },
         update: { saldo: { decrement: 50000 } },
+      });
+    });
+  });
+
+  describe('confirmarPagoCompleto', () => {
+    it('lanza BadRequestException cuando el stock es insuficiente en restaurante', async () => {
+      (mockPrismaService.facturas.findUnique as jest.Mock).mockResolvedValue({
+        usuario_id: 1n,
+        total: 100,
+        pedido_online_id: 10n,
+      });
+      (
+        mockPrismaService.pedidos_online.findUnique as jest.Mock
+      ).mockResolvedValue({
+        id: 10n,
+        detalle_pedido_online: [{ producto_id: 5n, cantidad: 3 }],
+      });
+
+      const mockTx = {
+        pagos: { update: jest.fn().mockResolvedValue({}) },
+        facturas: { update: jest.fn().mockResolvedValue({}) },
+        pedidos_online: { update: jest.fn().mockResolvedValue({}) },
+        productos_menu: {
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        },
+        saldos_usuario: { findUnique: jest.fn(), update: jest.fn() },
+        saldo_recargas: { upsert: jest.fn(), update: jest.fn() },
+        reservas_evento: { update: jest.fn() },
+        reservas_hotel: { update: jest.fn() },
+      };
+
+      (mockPrismaService.$transaction as jest.Mock).mockImplementation(
+        (cb: any) => cb(mockTx),
+      );
+
+      await expect(
+        repo.confirmarPagoCompleto(1n, 2n, 'RESTAURANTE', null),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockTx.productos_menu.updateMany).toHaveBeenCalledWith({
+        where: { id: 5n, stock: { gte: 3 } },
+        data: { stock: { decrement: 3 } },
       });
     });
   });

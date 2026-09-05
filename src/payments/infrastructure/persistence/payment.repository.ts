@@ -194,8 +194,8 @@ export class PaymentRepositoryImpl implements PaymentRepository {
           })
         : null;
 
-    if (cobrarConSaldo) {
-      return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
+      if (cobrarConSaldo) {
         const saldo = await tx.saldos_usuario.findUnique({
           where: { usuario_id: factura.usuario_id },
         });
@@ -212,33 +212,78 @@ export class PaymentRepositoryImpl implements PaymentRepository {
           where: { usuario_id: factura.usuario_id },
           data: { saldo: { decrement: total } },
         });
+      }
 
-        for (const update of this.construirActualizaciones(tx, {
-          pagoId,
-          facturaId,
-          tipoReserva,
-          reservaId,
-          pedido,
-          factura,
-        })) {
-          await update;
-        }
-
-        return { saldo_restante: disponible - total };
+      await tx.pagos.update({
+        where: { id: pagoId },
+        data: { estado: 'CONFIRMADO' },
       });
-    }
 
-    await this.prisma.$transaction(
-      this.construirActualizaciones(this.prisma, {
-        pagoId,
-        facturaId,
-        tipoReserva,
-        reservaId,
-        pedido,
-        factura,
-      }),
-    );
-    return {};
+      await tx.facturas.update({
+        where: { id: facturaId },
+        data: { estado: 'PAGADA' },
+      });
+
+      if (tipoReserva === 'EVENTO' && reservaId) {
+        await tx.reservas_evento.update({
+          where: { id: reservaId },
+          data: { estado: 'CONFIRMADA' },
+        });
+      }
+
+      if (tipoReserva === 'HOTEL' && reservaId) {
+        await tx.reservas_hotel.update({
+          where: { id: reservaId },
+          data: { estado: 'CONFIRMADA' },
+        });
+      }
+
+      if (tipoReserva === 'RESTAURANTE' && pedido) {
+        await tx.pedidos_online.update({
+          where: { id: pedido.id },
+          data: { estado: 'CONFIRMADA' },
+        });
+
+        for (const item of pedido.detalle_pedido_online ?? []) {
+          const res = await tx.productos_menu.updateMany({
+            where: { id: item.producto_id, stock: { gte: item.cantidad } },
+            data: { stock: { decrement: item.cantidad } },
+          });
+          if (res.count === 0) {
+            throw new BadRequestException(
+              `Stock insuficiente para el producto ${item.producto_id}`,
+            );
+          }
+        }
+      }
+
+      if (tipoReserva === 'RECARGA' && reservaId) {
+        await tx.saldos_usuario.upsert({
+          where: { usuario_id: factura.usuario_id },
+          create: {
+            usuario_id: factura.usuario_id,
+            saldo: factura.total,
+          },
+          update: {
+            saldo: { increment: factura.total },
+          },
+        });
+        await tx.saldo_recargas.update({
+          where: { id: reservaId },
+          data: { estado: 'CONFIRMADO', factura_id: facturaId },
+        });
+      }
+
+      if (cobrarConSaldo) {
+        const saldo = await tx.saldos_usuario.findUnique({
+          where: { usuario_id: factura.usuario_id },
+        });
+        const disponible = Number(saldo?.saldo ?? 0);
+        return { saldo_restante: disponible };
+      }
+
+      return {};
+    });
   }
 
   private construirActualizaciones(
