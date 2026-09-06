@@ -184,6 +184,12 @@ export class PaymentRepositoryImpl implements PaymentRepository {
       return {};
     }
 
+    const pago = await this.prisma.pagos.findUnique({
+      where: { id: pagoId },
+      select: { metodo_pago: true },
+    });
+    const metodoPago = pago?.metodo_pago ?? null;
+
     const pedidoId =
       tipoReserva === 'RESTAURANTE' ? factura.pedido_online_id : null;
     const pedido =
@@ -220,6 +226,7 @@ export class PaymentRepositoryImpl implements PaymentRepository {
           reservaId,
           pedido,
           factura,
+          metodoPago,
         })) {
           await update;
         }
@@ -236,6 +243,7 @@ export class PaymentRepositoryImpl implements PaymentRepository {
         reservaId,
         pedido,
         factura,
+        metodoPago,
       }),
     );
     return {};
@@ -253,6 +261,7 @@ export class PaymentRepositoryImpl implements PaymentRepository {
         detalle_pedido_online: { producto_id: bigint; cantidad: number }[];
       } | null;
       factura: { usuario_id: bigint; total: Decimal };
+      metodoPago: string | null;
     },
   ): PrismaPromise<unknown>[] {
     const updates: PrismaPromise<unknown>[] = [
@@ -277,9 +286,30 @@ export class PaymentRepositoryImpl implements PaymentRepository {
 
     if (params.tipoReserva === 'HOTEL' && params.reservaId) {
       updates.push(
+        client.pagos_hotel.updateMany({
+          where: { reserva_id: params.reservaId, factura_id: params.facturaId },
+          data: { estado: 'CONFIRMADO' },
+        }),
         client.reservas_hotel.update({
           where: { id: params.reservaId },
           data: { estado: 'CONFIRMADA' },
+        }),
+      );
+    }
+
+    if (params.tipoReserva === 'HOTEL_SALDO' && params.reservaId) {
+      updates.push(
+        client.pagos_hotel.updateMany({
+          where: {
+            reserva_id: params.reservaId,
+            tipo: 'SALDO',
+            estado: 'PENDIENTE',
+          },
+          data: {
+            estado: 'CONFIRMADO',
+            factura_id: params.facturaId,
+            metodo_pago: params.metodoPago ?? undefined,
+          },
         }),
       );
     }

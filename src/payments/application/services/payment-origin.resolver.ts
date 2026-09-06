@@ -11,6 +11,7 @@ import {
   RECARGA_MONTO_MIN,
   TipoReserva,
 } from 'src/payments/domain/payment.constants';
+import { IVA_DEFAULT_RATE } from 'src/facturacion/domain/iva.util';
 
 export interface PaymentOriginInput {
   tipo_reserva: TipoReserva;
@@ -47,6 +48,8 @@ export class PaymentOriginResolver {
         return this.origenEvento(usuarioId, input.reserva_id);
       case 'HOTEL':
         return this.origenHotel(usuarioId, input.reserva_id);
+      case 'HOTEL_SALDO':
+        return this.origenHotelSaldo(usuarioId, input.reserva_id);
       case 'RESTAURANTE':
         return this.origenPedidoOnline(usuarioId, input.reserva_id);
       case 'RECARGA':
@@ -119,6 +122,71 @@ export class PaymentOriginResolver {
     };
   }
 
+  private async origenHotelSaldo(
+    usuarioId: bigint,
+    reservaId?: bigint,
+  ): Promise<ReservaOrigen> {
+    const id = this.requerirId(reservaId);
+    const reserva = await this.obtenerReservaPropia(
+      this.prisma.reservas_hotel.findUnique({
+        where: { id },
+        include: { habitaciones: { include: { tipos_habitacion: true } } },
+      }),
+      usuarioId,
+      'Reserva de hotel no encontrada',
+    );
+
+    if (
+      !['CONFIRMADA', 'CHECK_IN', 'PENDING_PAYMENT'].includes(reserva.estado)
+    ) {
+      throw new BadRequestException(
+        'La reserva no está disponible para pago de saldo',
+      );
+    }
+
+    const pagosConfirmados = await this.prisma.pagos_hotel.findMany({
+      where: { reserva_id: id, estado: 'CONFIRMADO' },
+      select: { monto: true },
+    });
+    const pagado = pagosConfirmados.reduce(
+      (sum, p) => sum + Number(p.monto),
+      0,
+    );
+    const saldoPendiente = Math.max(0, Number(reserva.total) - pagado);
+
+    if (saldoPendiente <= 0) {
+      throw new BadRequestException(
+        'La reserva no tiene saldo pendiente por pagar',
+      );
+    }
+
+    const noches = Math.ceil(
+      (reserva.fecha_salida.getTime() - reserva.fecha_entrada.getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+
+    // El saldo pendiente ya es precio final (IVA incluido): se desglosa
+    // para que la factura cobre exactamente esa cifra, sin re-sumarlo.
+    const subtotal = Math.round(saldoPendiente / (1 + IVA_DEFAULT_RATE));
+    const impuestos = saldoPendiente - subtotal;
+
+    return {
+      monto: subtotal,
+      impuestos,
+      descripcion: `Pago saldo hotel - Habitación ${reserva.habitaciones.numero}`,
+      resumen: {
+        habitacion: reserva.habitaciones.numero,
+        tipo: reserva.habitaciones.tipos_habitacion.nombre,
+        fecha_entrada: reserva.fecha_entrada,
+        fecha_salida: reserva.fecha_salida,
+        noches,
+        huespedes: reserva.cantidad_huespedes,
+        saldo_pendiente: saldoPendiente,
+      },
+      reservaId: null,
+    };
+  }
+
   private async origenPedidoOnline(
     usuarioId: bigint,
     reservaId?: bigint,
@@ -175,11 +243,15 @@ export class PaymentOriginResolver {
     };
   }
 
-  private requerirId(reservaId?: bigint): bigint {
+  private requerirId(reservaId?: bigint | number): bigint {
     if (!reservaId) {
       throw new BadRequestException('reserva_id es obligatorio');
     }
-    return reservaId;
+    try {
+      return typeof reservaId === 'bigint' ? reservaId : BigInt(reservaId);
+    } catch {
+      throw new BadRequestException('reserva_id inválido');
+    }
   }
 
   private validarPendiente(estado: string | null): void {
