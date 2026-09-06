@@ -7,6 +7,7 @@ import {
 import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 import { EmailSender } from 'src/infrastructure/mail/domain/email-sender.interface';
 import { HotelRoomRepository } from '../../../hotel/domain/repositories/hotel-room.repository.interface';
+import { HotelPaymentRepository } from '../../../hotel/domain/repositories/hotel-payment.repository.interface';
 
 @Injectable()
 export class CreateHotelBookingUseCase {
@@ -14,6 +15,7 @@ export class CreateHotelBookingUseCase {
 
   constructor(
     private readonly hotelRepository: HotelRoomRepository,
+    private readonly hotelPaymentRepository: HotelPaymentRepository,
     private readonly prisma: PrismaService,
     private readonly emailSender: EmailSender,
   ) {}
@@ -27,6 +29,7 @@ export class CreateHotelBookingUseCase {
       cantidad_huespedes: number;
       observaciones?: string;
       total?: number;
+      pago_inicial_porcentaje?: number; // 1.0 = 100%, 0.15 = 15%
     },
   ) {
     const habitacion = await this.hotelRepository.findById(dto.habitacion_id);
@@ -70,6 +73,17 @@ export class CreateHotelBookingUseCase {
       total,
       observaciones: dto.observaciones,
     });
+
+    // Crear registro de pago inicial si aplica
+    const pagoInicialPorcentaje = dto.pago_inicial_porcentaje ?? 1.0;
+    if (pagoInicialPorcentaje < 1.0) {
+      await this.hotelPaymentRepository.createPagoHotel({
+        reserva_id: reserva.id,
+        tipo: 'INICIAL',
+        monto: Math.round(total * pagoInicialPorcentaje),
+        metodo_pago: 'WOMPI',
+      });
+    }
 
     await this.notifyBookingConfirmation(
       usuario_id,

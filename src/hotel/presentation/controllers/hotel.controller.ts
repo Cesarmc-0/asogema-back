@@ -1,19 +1,39 @@
-import { Controller, Get, Post, Query, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Query,
+  Param,
+  Body,
+  UseGuards,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiQuery,
+  ApiParam,
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { GetAvailableRoomsUseCase } from 'src/hotel/application/use-cases/get-available-rooms.use-case';
 import { CreateHotelBookingUseCase } from 'src/hotel/application/use-cases/create-hotel-booking.use-case';
 import { GetMyBookingsUseCase } from 'src/hotel/application/use-cases/get-my-bookings.use-case';
+import { GetDayBookingsUseCase } from 'src/hotel/application/use-cases/get-day-bookings.use-case';
+import { CheckInBookingUseCase } from 'src/hotel/application/use-cases/check-in-booking.use-case';
+import { CheckOutBookingUseCase } from 'src/hotel/application/use-cases/check-out-booking.use-case';
+import { PayHotelBalanceUseCase } from 'src/hotel/application/use-cases/pay-hotel-balance.use-case';
+import { GetPaymentStatusUseCase } from 'src/hotel/application/use-cases/get-payment-status.use-case';
+import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 import { GetRoomsDto } from '../dto/get-rooms.dto';
 import { CreateBookingDto } from '../dto/create-booking.dto';
+import { GetDayBookingsQueryDto } from '../dto/get-day-bookings-query.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { CurrentUser } from 'src/auth/presentation/dto/decorators/current-user.decorator';
 import type { AuthenticatedUser } from 'src/auth/domain/interfaces/authenticated-user.interface';
 import { Public } from 'src/auth/presentation/dto/decorators/public.decorator';
+import { Roles } from 'src/auth/presentation/dto/decorators/roles.decorator';
 
 @ApiTags('hotel')
 @Controller('hotel')
@@ -22,6 +42,12 @@ export class HotelController {
     private readonly availableRoomsUseCase: GetAvailableRoomsUseCase,
     private readonly createBookingUseCase: CreateHotelBookingUseCase,
     private readonly myBookingsUseCase: GetMyBookingsUseCase,
+    private readonly dayBookingsUseCase: GetDayBookingsUseCase,
+    private readonly checkInBookingUseCase: CheckInBookingUseCase,
+    private readonly checkOutBookingUseCase: CheckOutBookingUseCase,
+    private readonly payHotelBalanceUseCase: PayHotelBalanceUseCase,
+    private readonly getPaymentStatusUseCase: GetPaymentStatusUseCase,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Public()
@@ -66,6 +92,7 @@ export class HotelController {
       cantidad_huespedes: dto.cantidad_huespedes,
       total: dto.total,
       observaciones: dto.observaciones,
+      pago_inicial_porcentaje: dto.pago_inicial_porcentaje ?? 0.15,
     });
   }
 
@@ -75,5 +102,114 @@ export class HotelController {
   @Get('bookings/mine')
   async getMyBookings(@CurrentUser() user: AuthenticatedUser) {
     return this.myBookingsUseCase.execute(user.id);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Reservas del día (Recepcionista/Administrador). tipo=check-in | check-out | ocupadas | todas',
+  })
+  @ApiQuery({ name: 'fecha', required: false, type: String })
+  @ApiQuery({
+    name: 'tipo',
+    required: false,
+    enum: ['check-in', 'check-out', 'ocupadas', 'todas'],
+  })
+  @ApiQuery({ name: 'estado', required: false, type: String })
+  @UseGuards(AuthGuard('jwt'))
+  @Roles('Recepcionista', 'Administrador')
+  @Get('bookings/day')
+  async getDayBookings(@Query() query: GetDayBookingsQueryDto) {
+    return this.dayBookingsUseCase.execute({
+      fecha: query.fecha,
+      tipo: query.tipo,
+      estado: query.estado,
+    });
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Marcar check-in de una reserva (Recepcionista/Administrador)',
+  })
+  @ApiParam({ name: 'id', required: true, type: Number })
+  @UseGuards(AuthGuard('jwt'))
+  @Roles('Recepcionista', 'Administrador')
+  @Patch('bookings/:id/check-in')
+  async checkInBooking(@Param('id') id: string) {
+    return this.checkInBookingUseCase.execute(this.parseId(id));
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Marcar check-out de una reserva (Recepcionista/Administrador)',
+  })
+  @ApiParam({ name: 'id', required: true, type: Number })
+  @UseGuards(AuthGuard('jwt'))
+  @Roles('Recepcionista', 'Administrador')
+  @Patch('bookings/:id/check-out')
+  async checkOutBooking(@Param('id') id: string) {
+    return this.checkOutBookingUseCase.execute(this.parseId(id));
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Pagar saldo de reserva hotel' })
+  @ApiParam({ name: 'id', required: true, type: Number })
+  @UseGuards(AuthGuard('jwt'))
+  @Post('bookings/:id/pay-balance')
+  async payBalance(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.payHotelBalanceUseCase.execute(user.id, this.parseId(id));
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Estado de pago de reserva' })
+  @ApiParam({ name: 'id', required: true, type: Number })
+  @UseGuards(AuthGuard('jwt'))
+  @Get('bookings/:id/payment-status')
+  async getPaymentStatus(@Param('id') id: string) {
+    return this.getPaymentStatusUseCase.execute(this.parseId(id));
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancelar reserva de hotel' })
+  @ApiParam({ name: 'id', required: true, type: Number })
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('bookings/:id/cancel')
+  async cancelBooking(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const bookingId = this.parseId(id);
+    const booking = await this.prisma.reservas_hotel.findFirst({
+      where: { id: bookingId, usuario_id: BigInt(user.id) },
+    });
+    if (!booking) {
+      throw new BadRequestException('Reserva no encontrada');
+    }
+    if (!['PENDIENTE', 'CONFIRMADA'].includes(booking.estado)) {
+      throw new ForbiddenException('No se puede cancelar en este estado');
+    }
+    const checkIn = new Date(booking.fecha_entrada);
+    const now = new Date();
+    const diffHours = (checkIn.getTime() - now.getTime()) / (1000 * 60 * 60);
+    if (diffHours < 48) {
+      throw new ForbiddenException(
+        'Cancelación permitida solo con al menos 48 horas de antelación',
+      );
+    }
+    await this.prisma.reservas_hotel.update({
+      where: { id: bookingId },
+      data: { estado: 'CANCELADA' },
+    });
+    return { message: 'Reserva cancelada' };
+  }
+
+  private parseId(id: string): bigint {
+    if (!/^\d+$/.test(id)) {
+      throw new BadRequestException('id debe ser numérico');
+    }
+    return BigInt(id);
   }
 }
