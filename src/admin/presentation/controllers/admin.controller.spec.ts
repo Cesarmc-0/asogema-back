@@ -129,14 +129,14 @@ describe('AdminController - Soft delete', () => {
     },
   );
 
-  it('deleteMenuProduct marca activo:"inactivo" en vez de borrar el registro', async () => {
+  it('deleteMenuProduct marca activo:false en vez de borrar el registro', async () => {
     prisma.productos_menu.update.mockResolvedValue({ id: 1n });
 
     const result = await controller.deleteMenuProduct(1);
 
     expect(prisma.productos_menu.update).toHaveBeenCalledWith({
       where: { id: 1n },
-      data: { activo: 'inactivo' },
+      data: { activo: false },
     });
     expect(result).toEqual({ id: 1n });
   });
@@ -160,14 +160,14 @@ describe('AdminController - Soft delete', () => {
     },
   );
 
-  it('reactivateMenuProduct marca activo:"activo" para reactivar el registro', async () => {
+  it('reactivateMenuProduct marca activo:true para reactivar el registro', async () => {
     prisma.productos_menu.update.mockResolvedValue({ id: 1n });
 
     const result = await controller.reactivateMenuProduct(1);
 
     expect(prisma.productos_menu.update).toHaveBeenCalledWith({
       where: { id: 1n },
-      data: { activo: 'activo' },
+      data: { activo: true },
     });
     expect(result).toEqual({ id: 1n });
   });
