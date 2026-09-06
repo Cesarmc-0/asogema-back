@@ -106,8 +106,17 @@ export class PaymentOriginResolver {
         (1000 * 60 * 60 * 24),
     );
 
+    // El pago inicial (15%) ya es precio final: se desglosa con IVA embebido
+    // para que la factura cobre exactamente esa cifra, sin re-sumarlo.
+    const anticipo = Math.round(
+      Number(reserva.total) * HOTEL_PORCENTAJE_INICIAL,
+    );
+    const subtotal = Math.round(anticipo / (1 + IVA_DEFAULT_RATE));
+    const impuestos = anticipo - subtotal;
+
     return {
-      monto: Math.round(Number(reserva.total) * HOTEL_PORCENTAJE_INICIAL),
+      monto: subtotal,
+      impuestos,
       descripcion: `Pago inicial ${HOTEL_PORCENTAJE_INICIAL * 100}% hotel - Habitación ${reserva.habitaciones.numero}`,
       resumen: {
         habitacion: reserva.habitaciones.numero,

@@ -37,7 +37,7 @@ describe('PaymentOriginResolver', () => {
     );
   });
 
-  it('HOTEL: calcula el 15% del total y las noches', async () => {
+  it('HOTEL: pago inicial con IVA embebido (cobro = 15% exacto)', async () => {
     mockPrisma.reservas_hotel.findUnique.mockResolvedValueOnce({
       usuario_id: 10n,
       fecha_entrada: new Date('2026-09-10'),
@@ -56,7 +56,8 @@ describe('PaymentOriginResolver', () => {
       reserva_id: 5n,
     });
 
-    expect(origen.monto).toBe(150000);
+    // Total 1.000.000 → anticipo 150.000 → subtotal 126.051 + IVA 23.949 = 150.000 exacto
+    expect(origen.monto + (origen.impuestos ?? 0)).toBe(150000);
     expect(origen.resumen).toEqual(
       expect.objectContaining({ noches: 3, porcentaje_inicial: 15 }),
     );
