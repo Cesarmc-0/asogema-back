@@ -74,8 +74,15 @@ export class PaymentOriginResolver {
 
     this.validarPendiente(reserva.estado);
 
+    // El anticipo ya es precio final: se desglosa con IVA embebido
+    // para que la factura cobre exactamente esa cifra, sin re-sumarlo.
+    const anticipo = Math.round(Number(reserva.anticipo ?? 0));
+    const subtotal = Math.round(anticipo / (1 + IVA_DEFAULT_RATE));
+    const impuestos = anticipo - subtotal;
+
     return {
-      monto: Number(reserva.anticipo ?? 0),
+      monto: subtotal,
+      impuestos,
       descripcion: `Anticipo evento - ${reserva.salones.nombre}`,
       resumen: {
         salon: reserva.salones.nombre,

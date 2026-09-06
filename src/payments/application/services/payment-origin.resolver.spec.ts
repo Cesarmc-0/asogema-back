@@ -18,7 +18,7 @@ describe('PaymentOriginResolver', () => {
     jest.clearAllMocks();
   });
 
-  it('EVENTO: usa el anticipo guardado de la reserva propia', async () => {
+  it('EVENTO: anticipo con IVA embebido (cobro = anticipo exacto)', async () => {
     mockPrisma.reservas_evento.findUnique.mockResolvedValueOnce({
       usuario_id: 10n,
       anticipo: new Decimal(500000),
@@ -31,7 +31,8 @@ describe('PaymentOriginResolver', () => {
       reserva_id: 1n,
     });
 
-    expect(origen.monto).toBe(500000);
+    // Anticipo 500.000 → subtotal ≈ 420.168 + IVA ≈ 79.832 = 500.000 exacto
+    expect(origen.monto + (origen.impuestos ?? 0)).toBe(500000);
     expect(origen.resumen).toEqual(
       expect.objectContaining({ salon: 'Salón Esmeralda' }),
     );
