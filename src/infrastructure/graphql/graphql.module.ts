@@ -10,7 +10,7 @@ import { PaymentsResolver } from 'src/infrastructure/graphql/resolvers/payments.
 import { WalletResolver } from 'src/infrastructure/graphql/resolvers/wallet.resolver';
 import { ReservasResolver } from 'src/infrastructure/graphql/resolvers/reservas.resolver';
 import { ComandaResolver } from './resolvers/comanda.resolver';
-import { ListarPedidosComandaUsecase } from 'src/restaurant/application/use-cases/listar-pedidos-comanda.use-case';
+import { ListarPedidosComandaUsecase } from 'src/restaurant/comanda/application/use-cases/listar-pedidos-comanda.use-case';
 
 @Module({
   imports: [

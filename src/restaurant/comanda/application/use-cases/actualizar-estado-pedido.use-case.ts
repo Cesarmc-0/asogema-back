@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 import { ComandaQueueService } from '../comanda-queue.service';
-import { ComandaGateway } from 'src/restaurant/infrastructure/gateways/comanda.gateway';
+import { ComandaGateway } from 'src/restaurant/comanda/infrastructure/gateways/comanda.gateway';
 
 export const ESTADOS_PEDIDO = ['RECIBIDO', 'LISTO', 'ENTREGADO'] as const;
 export type EstadoPedido = (typeof ESTADOS_PEDIDO)[number];

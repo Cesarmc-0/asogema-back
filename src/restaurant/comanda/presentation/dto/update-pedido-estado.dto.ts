@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsString } from 'class-validator';
-import { ESTADOS_PEDIDO } from 'src/restaurant/application/use-cases/actualizar-estado-pedido.use-case';
+import { ESTADOS_PEDIDO } from 'src/restaurant/comanda/application/use-cases/actualizar-estado-pedido.use-case';
 
 export class UpdatePedidoEstadoDto {
   @ApiProperty({ enum: ESTADOS_PEDIDO })

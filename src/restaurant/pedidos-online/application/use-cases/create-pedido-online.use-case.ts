@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 import { RestaurantRepository } from 'src/restaurant/domain/repositories/restaurant-repository.interface';
-import { ComandaGateway } from 'src/restaurant/infrastructure/gateways/comanda.gateway';
+import { ComandaGateway } from 'src/restaurant/comanda/infrastructure/gateways/comanda.gateway';
 import { IVA_DEFAULT_RATE } from 'src/facturacion/domain/iva.util';
 
 export const MESA_FEE = 5000;

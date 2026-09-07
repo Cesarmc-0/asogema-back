@@ -1,26 +1,31 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
-import { GetMenuUseCase } from 'src/restaurant/application/use-cases/get-menu.use-case';
-import { GetAvailableTablesUseCase } from 'src/restaurant/application/use-cases/get-available-tables.use-case';
-import { CreateRestaurantReservationUseCase } from 'src/restaurant/application/use-cases/create-restaurant-reservation.use-case';
-import { CreatePedidoOnlineUseCase } from 'src/restaurant/application/use-cases/create-pedido-online.use-case';
-import { GetPedidoDetalleUseCase } from 'src/restaurant/application/use-cases/get-pedido-detalle.use-case';
-import { ActualizarEstadoPedidoUseCase } from 'src/restaurant/application/use-cases/actualizar-estado-pedido.use-case';
-import { GetMyRestaurantReservationsUseCase } from 'src/restaurant/application/use-cases/get-my-restaurant-reservations.use-case';
-import { RestaurantRepository } from 'src/restaurant/domain/repositories/restaurant-repository.interface';
+import { GetMenuUseCase } from 'src/restaurant/menu/application/use-cases/get-menu.use-case';
+import { GetAvailableTablesUseCase } from 'src/restaurant/mesas/application/use-cases/get-available-tables.use-case';
+import { CreateRestaurantReservationUseCase } from 'src/restaurant/mesas/application/use-cases/create-restaurant-reservation.use-case';
+import { CreatePedidoOnlineUseCase } from 'src/restaurant/pedidos-online/application/use-cases/create-pedido-online.use-case';
+import { GetPedidoDetalleUseCase } from 'src/restaurant/pedidos-online/application/use-cases/get-pedido-detalle.use-case';
+import { ActualizarEstadoPedidoUseCase } from 'src/restaurant/comanda/application/use-cases/actualizar-estado-pedido.use-case';
+import { GetMyRestaurantReservationsUseCase } from 'src/restaurant/mesas/application/use-cases/get-my-restaurant-reservations.use-case';
 import { RestaurantRepositoryImpl } from 'src/restaurant/infrastructure/persistence/restaurant.repository';
-import { RestaurantController } from 'src/restaurant/presentation/controllers/restaurant.controller';
-import { PaymentsModule } from 'src/payments/payments.module';
-import { ComandaGateway } from 'src/restaurant/infrastructure/gateways/comanda.gateway';
+import { MenuController } from 'src/restaurant/menu/presentation/controllers/menu.controller';
+import { MesasController } from 'src/restaurant/mesas/presentation/controllers/mesas.controller';
+import { PedidosOnlineController } from 'src/restaurant/pedidos-online/presentation/controllers/pedidos-online.controller';
+import { ComandaController } from 'src/restaurant/comanda/presentation/controllers/comanda.controller';
+import { ComandaGateway } from 'src/restaurant/comanda/infrastructure/gateways/comanda.gateway';
+import { RestaurantRepository } from './domain/repositories/restaurant-repository.interface';
 import {
   COMANDA_QUEUE,
   ComandaQueueService,
-} from 'src/restaurant/application/comanda-queue.service';
-import { ComandaQueueProcessor } from 'src/restaurant/application/comanda-queue.processor';
+} from 'src/restaurant/comanda/application/comanda-queue.service';
+import { ComandaQueueProcessor } from 'src/restaurant/comanda/application/comanda-queue.processor';
 
 @Module({
-  imports: [PaymentsModule, BullModule.registerQueue({ name: COMANDA_QUEUE })],
-  controllers: [RestaurantController],
+  controllers: [
+    MenuController,
+    MesasController,
+    PedidosOnlineController,
+    ComandaController,
+  ],
   providers: [
     GetMenuUseCase,
     GetAvailableTablesUseCase,
@@ -29,11 +34,16 @@ import { ComandaQueueProcessor } from 'src/restaurant/application/comanda-queue.
     GetPedidoDetalleUseCase,
     ActualizarEstadoPedidoUseCase,
     GetMyRestaurantReservationsUseCase,
-    { provide: RestaurantRepository, useClass: RestaurantRepositoryImpl },
     ComandaGateway,
-    ComandaQueueService,
+    {
+      provide: RestaurantRepository,
+      useClass: RestaurantRepositoryImpl,
+    },
+    {
+      provide: COMANDA_QUEUE,
+      useClass: ComandaQueueService,
+    },
     ComandaQueueProcessor,
   ],
-  exports: [ComandaGateway, ComandaQueueService],
 })
 export class RestaurantModule {}

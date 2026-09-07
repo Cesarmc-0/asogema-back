@@ -7,7 +7,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { TIPOS_PEDIDO } from 'src/restaurant/application/use-cases/create-pedido-online.use-case';
+import { TIPOS_PEDIDO } from 'src/restaurant/pedidos-online/application/use-cases/create-pedido-online.use-case';
 
 export class PedidoOnlineItemDto {
   @IsInt()

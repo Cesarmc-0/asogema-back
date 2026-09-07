@@ -62,13 +62,17 @@ describe('CreatePedidoOnlineUseCase', () => {
   });
 
   it('para llevar: subtotal = suma de items, sin cargo de mesa', async () => {
-    const result = await useCase.execute(10n, {
-      items: [
-        { producto_id: 1n, cantidad: 2 },
-        { producto_id: 2n, cantidad: 1 },
-      ],
-      tipo: 'PARA_LLEVAR',
-    }, 'Cliente');
+    const result = await useCase.execute(
+      10n,
+      {
+        items: [
+          { producto_id: 1n, cantidad: 2 },
+          { producto_id: 2n, cantidad: 1 },
+        ],
+        tipo: 'PARA_LLEVAR',
+      },
+      'Cliente',
+    );
 
     // Hamburguesa 2x20000 (con IVA) + Gaseosa 5000 (exenta) → IVA solo sobre 40000
     expect(result.subtotal).toBe(45000);
@@ -109,10 +113,14 @@ describe('CreatePedidoOnlineUseCase', () => {
   });
 
   it('notifica el cambio en el tablero tras crear el pedido', async () => {
-    await useCase.execute(10n, {
-      items: [{ producto_id: 1n, cantidad: 1 }],
-      tipo: 'PARA_LLEVAR',
-    }, 'Cliente');
+    await useCase.execute(
+      10n,
+      {
+        items: [{ producto_id: 1n, cantidad: 1 }],
+        tipo: 'PARA_LLEVAR',
+      },
+      'Cliente',
+    );
 
     expect(mockComandaGateway.notificarCambio).toHaveBeenCalledWith({
       pedido_id: 50,
@@ -120,10 +128,14 @@ describe('CreatePedidoOnlineUseCase', () => {
   });
 
   it('en mesa: agrega el cargo de mesa de $5.000', async () => {
-    const result = await useCase.execute(10n, {
-      items: [{ producto_id: 1n, cantidad: 1 }],
-      tipo: 'EN_MESA',
-    }, 'Cliente');
+    const result = await useCase.execute(
+      10n,
+      {
+        items: [{ producto_id: 1n, cantidad: 1 }],
+        tipo: 'EN_MESA',
+      },
+      'Cliente',
+    );
 
     expect(result.subtotal).toBe(20000);
     expect(result.impuestos).toBe(3800);
@@ -134,10 +146,14 @@ describe('CreatePedidoOnlineUseCase', () => {
 
   it('cantidad mayor al stock: lanza BadRequestException', async () => {
     await expect(
-      useCase.execute(10n, {
-        items: [{ producto_id: 2n, cantidad: 5 }],
-        tipo: 'PARA_LLEVAR',
-      }, 'Cliente'),
+      useCase.execute(
+        10n,
+        {
+          items: [{ producto_id: 2n, cantidad: 5 }],
+          tipo: 'PARA_LLEVAR',
+        },
+        'Cliente',
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -151,13 +167,17 @@ describe('CreatePedidoOnlineUseCase', () => {
     mockPrisma.productos_menu.findMany.mockResolvedValueOnce([productos[0]]);
 
     await expect(
-      useCase.execute(10n, {
-        items: [
-          { producto_id: 1n, cantidad: 1 },
-          { producto_id: 999n, cantidad: 1 },
-        ],
-        tipo: 'PARA_LLEVAR',
-      }, 'Cliente'),
+      useCase.execute(
+        10n,
+        {
+          items: [
+            { producto_id: 1n, cantidad: 1 },
+            { producto_id: 999n, cantidad: 1 },
+          ],
+          tipo: 'PARA_LLEVAR',
+        },
+        'Cliente',
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 });
