@@ -1,5 +1,6 @@
 import {
   Injectable,
+  BadRequestException,
   ConflictException,
   NotFoundException,
   Logger,
@@ -69,6 +70,11 @@ export class CreateEventBookingUseCase {
 
     // Rubro del evento a precio completo: ya no se cobra 30% como anticipo,
     // la reserva se factura y cobra por el monto total del evento.
+    // Sin precio determinable se falla aquí: Number(null) daría 0 silencioso
+    // y aguas abajo se facturaría $0.
+    if (dto.anticipo == null && salon.precio_base == null) {
+      throw new BadRequestException('El salón no tiene un precio configurado');
+    }
     const anticipo = dto.anticipo ?? Number(salon.precio_base);
 
     const reserva = await this.eventRepository.createEventBooking({
