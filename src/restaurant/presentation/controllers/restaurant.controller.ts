@@ -142,7 +142,7 @@ export class RestaurantController {
         cantidad: item.cantidad,
       })),
       tipo: dto.tipo as 'PARA_LLEVAR' | 'EN_MESA',
-    });
+    }, user.rol_nombre);
   }
 
   @ApiBearerAuth()
