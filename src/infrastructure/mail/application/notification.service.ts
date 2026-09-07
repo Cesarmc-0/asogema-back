@@ -8,6 +8,7 @@ import {
   WelcomeVerificationPayload,
   BookingPayload,
   PurchaseReceiptPayload,
+  FacturaElectronicaPayload,
   PasswordRecoveryPayload,
 } from '../domain/email-sender.interface';
 
@@ -36,6 +37,12 @@ export class NotificationService extends EmailSender {
 
   async sendPurchaseReceipt(payload: PurchaseReceiptPayload): Promise<void> {
     await this.enqueue({ type: 'purchase-receipt', ...payload });
+  }
+
+  async sendFacturaElectronica(
+    payload: FacturaElectronicaPayload,
+  ): Promise<void> {
+    await this.enqueue({ type: 'factura-electronica', ...payload });
   }
 
   async sendPasswordRecovery(payload: PasswordRecoveryPayload): Promise<void> {
