@@ -95,7 +95,7 @@ export class GenerarFacturaUseCase {
         phone: cliente.telefono,
         legal_organization_code: '2',
         country_code: 'CO',
-        municipality_code: '66001',
+        municipality_code: '73001',
       },
       items: items.map((item: detalle_factura) => ({
         code_reference: `ITEM-${factura.id}-${item.id}`,
