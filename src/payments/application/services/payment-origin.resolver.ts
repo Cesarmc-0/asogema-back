@@ -74,8 +74,18 @@ export class PaymentOriginResolver {
 
     this.validarPendiente(reserva.estado);
 
+    // El anticipo puede venir NULL en reservas viejas: se usa el precio
+    // vigente del salón. Si tampoco hay monto válido se falla explícito en
+    // vez de facturar $0 silencioso (antes: `?? 0`).
+    const monto = Number(reserva.anticipo ?? reserva.salones.precio_base ?? 0);
+    if (!(monto > 0)) {
+      throw new BadRequestException(
+        'La reserva no tiene un monto válido para pagar',
+      );
+    }
+
     return {
-      monto: Number(reserva.anticipo ?? 0),
+      monto,
       descripcion: `Anticipo evento - ${reserva.salones.nombre}`,
       resumen: {
         salon: reserva.salones.nombre,

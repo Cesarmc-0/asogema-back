@@ -37,6 +37,35 @@ describe('PaymentOriginResolver', () => {
     );
   });
 
+  it('EVENTO con anticipo nulo: usa el precio vigente del salón', async () => {
+    mockPrisma.reservas_evento.findUnique.mockResolvedValueOnce({
+      usuario_id: 10n,
+      anticipo: null,
+      estado: 'PENDIENTE',
+      salones: { nombre: 'Salón Esmeralda', precio_base: new Decimal(800000) },
+    });
+
+    const origen = await resolver.resolve(10n, {
+      tipo_reserva: 'EVENTO',
+      reserva_id: 1n,
+    });
+
+    expect(origen.monto).toBe(800000);
+  });
+
+  it('EVENTO sin monto válido: lanza BadRequestException en vez de facturar $0', async () => {
+    mockPrisma.reservas_evento.findUnique.mockResolvedValueOnce({
+      usuario_id: 10n,
+      anticipo: null,
+      estado: 'PENDIENTE',
+      salones: { nombre: 'Salón Esmeralda', precio_base: null },
+    });
+
+    await expect(
+      resolver.resolve(10n, { tipo_reserva: 'EVENTO', reserva_id: 1n }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
   it('HOTEL: calcula el 15% del total y las noches', async () => {
     mockPrisma.reservas_hotel.findUnique.mockResolvedValueOnce({
       usuario_id: 10n,
