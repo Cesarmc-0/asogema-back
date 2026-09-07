@@ -31,6 +31,16 @@ export interface PurchaseReceiptPayload {
   total: string;
 }
 
+export interface FacturaElectronicaPayload {
+  nombre: string;
+  correo: string;
+  factura_id: string | number | bigint;
+  numero_factura: string;
+  fecha: string;
+  total: string;
+  pdf_base64: string;
+}
+
 export interface PasswordRecoveryPayload {
   nombre: string;
   correo: string;
@@ -41,6 +51,7 @@ export type EmailJobData =
   | ({ type: 'welcome-verification' } & WelcomeVerificationPayload)
   | ({ type: BookingType } & BookingPayload)
   | ({ type: 'purchase-receipt' } & PurchaseReceiptPayload)
+  | ({ type: 'factura-electronica' } & FacturaElectronicaPayload)
   | ({ type: 'password-recovery' } & PasswordRecoveryPayload);
 
 export abstract class EmailSender {
@@ -52,6 +63,9 @@ export abstract class EmailSender {
     payload: BookingPayload,
   ): Promise<void>;
   abstract sendPurchaseReceipt(payload: PurchaseReceiptPayload): Promise<void>;
+  abstract sendFacturaElectronica(
+    payload: FacturaElectronicaPayload,
+  ): Promise<void>;
   abstract sendPasswordRecovery(
     payload: PasswordRecoveryPayload,
   ): Promise<void>;
