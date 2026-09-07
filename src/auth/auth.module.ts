@@ -14,6 +14,7 @@ import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-cas
 import { ResendCodeUseCase } from './application/use-cases/resend-code.use-case';
 import { ForgotPasswordUseCase } from './application/use-cases/forgot-password.use-case';
 import { ResetPasswordUseCase } from './application/use-cases/reset-password.use-case';
+import { GetProfileUseCase } from './application/use-cases/get-profile.use-case';
 import { CreateAdminService } from './application/use-cases/create-admin.use-case';
 import { TokenService } from './application/services/token.service';
 import { EmailVerificationService } from './application/services/email-verification.service';
@@ -48,6 +49,7 @@ import { RolesGuard } from './infrastructure/guards/roles.guard';
     ResendCodeUseCase,
     ForgotPasswordUseCase,
     ResetPasswordUseCase,
+    GetProfileUseCase,
     CreateAdminService,
     TokenService,
     EmailVerificationService,
