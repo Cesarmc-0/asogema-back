@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+  <body style="font-family: Arial, sans-serif; color: #222; line-height: 1.6">
+    <h2 style="color: #133215">Factura electrónica - Asogema</h2>
+    <p>Hola {{nombre}}, tu factura electrónica fue emitida correctamente.</p>
+    <table style="border-collapse: collapse; margin-top: 12px">
+      <tr>
+        <td style="padding: 6px 12px; font-weight: bold">Número:</td>
+        <td style="padding: 6px 12px">{{numero_factura}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 12px; font-weight: bold">Fecha:</td>
+        <td style="padding: 6px 12px">{{fecha}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 12px; font-weight: bold">Total:</td>
+        <td style="padding: 6px 12px">{{total}}</td>
+      </tr>
+    </table>
+    <p style="color: #666; font-size: 14px">
+      Encontrarás el PDF de la factura adjunto a este correo.
+    </p>
+    <p style="color: #666; font-size: 14px">
+      Para cualquier consulta sobre tu factura, contáctanos.
+    </p>
+  </body>
+</html>

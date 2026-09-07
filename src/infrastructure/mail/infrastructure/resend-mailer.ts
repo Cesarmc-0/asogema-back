@@ -9,6 +9,7 @@ import {
   WelcomeVerificationPayload,
   BookingPayload,
   PurchaseReceiptPayload,
+  FacturaElectronicaPayload,
   PasswordRecoveryPayload,
 } from '../domain/email-sender.interface';
 
@@ -18,6 +19,7 @@ const TEMPLATE_NAMES: Record<string, string> = {
   'event-booking': 'event-booking',
   'restaurant-reservation': 'restaurant-reservation',
   'purchase-receipt': 'purchase-receipt',
+  'factura-electronica': 'factura-electronica',
   'password-recovery': 'password-recovery',
 };
 
@@ -27,6 +29,7 @@ const SUBJECTS: Record<string, string> = {
   'event-booking': 'Confirmación de reserva de salón - Asogema',
   'restaurant-reservation': 'Confirmación de reserva de mesa - Asogema',
   'purchase-receipt': 'Recibo de compra - Asogema',
+  'factura-electronica': 'Factura electrónica - Asogema',
   'password-recovery': 'Recuperación de contraseña - Asogema',
 };
 
@@ -57,6 +60,39 @@ export class ResendMailer extends EmailSender {
 
   async sendPurchaseReceipt(payload: PurchaseReceiptPayload): Promise<void> {
     await this.send('purchase-receipt', payload);
+  }
+
+  async sendFacturaElectronica(
+    payload: FacturaElectronicaPayload,
+  ): Promise<void> {
+    const templateName = TEMPLATE_NAMES['factura-electronica'];
+    const html = this.render(templateName, payload);
+    const to = String(payload.correo);
+
+    const { data, error } = await this.resend.emails.send({
+      from: this.from,
+      to,
+      subject: SUBJECTS['factura-electronica'],
+      html,
+      attachments: [
+        {
+          filename: `factura-${payload.numero_factura}.pdf`,
+          content: payload.pdf_base64,
+        },
+      ],
+    });
+
+    if (error) {
+      throw new Error(
+        `Resend falló al enviar factura a ${to}: ${
+          error.name ?? 'error'
+        } - ${error.message}`,
+      );
+    }
+
+    this.logger.log(
+      `Factura electronica -> ${to} (id: ${data?.id ?? 'desconocido'})`,
+    );
   }
 
   async sendPasswordRecovery(payload: PasswordRecoveryPayload): Promise<void> {
