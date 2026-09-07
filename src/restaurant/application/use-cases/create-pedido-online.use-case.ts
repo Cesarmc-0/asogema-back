@@ -9,9 +9,27 @@ export const MESA_FEE = 5000;
 export const TIPOS_PEDIDO = ['PARA_LLEVAR', 'EN_MESA'] as const;
 export type TipoPedido = (typeof TIPOS_PEDIDO)[number];
 
+/** Rol personal del restaurante: crea pedidos que van directo a cocina. */
+export const ROL_PERSONAL_RESTAURANTE = [
+  'Mesero',
+  'Comanda',
+  'Administrador',
+  'Gerente',
+  'Recepcionista',
+] as const;
+
 interface CreatePedidoOnlineInput {
   items: { producto_id: bigint; cantidad: number }[];
   tipo: TipoPedido;
+}
+
+export type EstadoInicialPedido = 'PENDIENTE' | 'RECIBIDO';
+
+/** Un pedido del personal va directo a cocina; uno del cliente espera pago. */
+function estadoInicialPorRol(rol: string): EstadoInicialPedido {
+  return (ROL_PERSONAL_RESTAURANTE as readonly string[]).includes(rol)
+    ? 'RECIBIDO'
+    : 'PENDIENTE';
 }
 
 @Injectable()
@@ -22,7 +40,7 @@ export class CreatePedidoOnlineUseCase {
     private readonly comandaGateway: ComandaGateway,
   ) {}
 
-  async execute(usuarioId: bigint, dto: CreatePedidoOnlineInput) {
+  async execute(usuarioId: bigint, dto: CreatePedidoOnlineInput, rol: string) {
     if (dto.items.length === 0) {
       throw new BadRequestException('El pedido debe tener al menos un item');
     }
@@ -76,6 +94,7 @@ export class CreatePedidoOnlineUseCase {
     const pedido = await this.restaurantRepo.createPedidoOnline({
       usuario_id: usuarioId,
       tipo: dto.tipo,
+      estado: estadoInicialPorRol(rol),
       incluye_mesa: incluyeMesa,
       subtotal: new Decimal(subtotal),
       impuestos: new Decimal(impuestos),

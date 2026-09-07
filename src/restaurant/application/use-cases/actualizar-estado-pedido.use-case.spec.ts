@@ -97,6 +97,35 @@ describe('ActualizarEstadoPedidoUseCase', () => {
     expect(mockComandaQueue.enqueuePedidoListo).not.toHaveBeenCalled();
   });
 
+  it('recibe un pedido pagado (CONFIRMADA → RECIBIDO)', async () => {
+    mockPrisma.pedidos_online.findUnique.mockResolvedValueOnce({
+      id: 1n,
+      estado: 'CONFIRMADA',
+      usuario_id: 5,
+    });
+
+    const result = await useCase.execute(1n, 'RECIBIDO');
+
+    expect(result).toEqual({ pedido_id: 1n, estado: 'RECIBIDO' });
+    expect(mockPrisma.pedidos_online.update).toHaveBeenCalledWith({
+      where: { id: 1n },
+      data: { estado: 'RECIBIDO' },
+    });
+  });
+
+  it('no permite recibir en cocina un pedido sin pagar (PENDIENTE → RECIBIDO)', async () => {
+    mockPrisma.pedidos_online.findUnique.mockResolvedValueOnce({
+      id: 1n,
+      estado: 'PENDIENTE',
+      usuario_id: 5,
+    });
+
+    await expect(useCase.execute(1n, 'RECIBIDO')).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(mockPrisma.pedidos_online.update).not.toHaveBeenCalled();
+  });
+
   it('no permite saltarse estados (RECIBIDO → ENTREGADO)', async () => {
     mockPrisma.pedidos_online.findUnique.mockResolvedValueOnce({
       id: 1n,
