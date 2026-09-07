@@ -36,6 +36,7 @@ export interface CreatePedidoOnlineItemInput {
 export interface CreatePedidoOnlineInput {
   usuario_id: bigint;
   tipo: 'PARA_LLEVAR' | 'EN_MESA';
+  estado: 'PENDIENTE' | 'RECIBIDO';
   incluye_mesa: boolean;
   subtotal: Decimal;
   impuestos: Decimal;

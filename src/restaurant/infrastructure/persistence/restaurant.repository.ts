@@ -80,6 +80,7 @@ export class RestaurantRepositoryImpl implements RestaurantRepository {
       data: {
         usuario_id: data.usuario_id,
         tipo: data.tipo,
+        estado: data.estado,
         incluye_mesa: data.incluye_mesa,
         subtotal: data.subtotal,
         impuestos: data.impuestos,
