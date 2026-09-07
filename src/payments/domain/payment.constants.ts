@@ -6,6 +6,7 @@
 export const TIPOS_RESERVA = [
   'EVENTO',
   'HOTEL',
+  'HOTEL_SALDO',
   'RESTAURANTE',
   'RECARGA',
 ] as const;

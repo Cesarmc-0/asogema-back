@@ -184,6 +184,8 @@ Es un sistema semiprofesional con:
 - [ ] `test/app.e2e-spec.ts` scaffold falla (espera "Hello World!" pero AppController devuelve JSON)
 - [x] Tests unitarios en verde (23 suites / 85 tests) tras notificaciones por correo
 - [ ] Cuidado con `prisma db pull` a ciegas: la BD Railway comparte esquema con otras apps (142 tablas); el schema del proyecto se mantiene curado en 21 modelos — al sincronizar, revisar el diff y descartar modelos ajenos
+- [x] Migración `resenas` versionada como `prisma/migrations/20260906_resenas/migration.sql` (antes solo existía en BD local) — **pendiente aplicarla manualmente en Railway/stage antes de desplegar el módulo de reseñas**
+- [x] Migración `productos_softdelete_activo` reescrita como `20260903_productos_flags_boolean` (dirección boolean adoptada; el archivo original varchar-string quedó obsoleto) — **no ejecutar el SQL viejo si la tabla ya tiene boolean**
 
 ---
 

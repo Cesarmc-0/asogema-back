@@ -111,6 +111,36 @@ async function ensureEmpleados() {
   }
 }
 
+async function ensureRecepcionista() {
+  const role = await prisma.roles.findFirst({ where: { nombre: 'Recepcionista', estado: true } });
+  if (!role) {
+    console.log('Rol Recepcionista no encontrado.');
+    return;
+  }
+
+  const existing = await prisma.usuarios.findUnique({ where: { correo: 'recepcionista@asogema.com' } });
+  if (existing) {
+    console.log(`Recepcionista recepcionista@asogema.com ya existe.`);
+    return;
+  }
+
+  const hash = await bcrypt.hash('Recepcionista123456', 10);
+  await prisma.usuarios.create({
+    data: {
+      rol_id: role.id,
+      tipo_documento_id: 1,
+      nombre: 'Recepcionista',
+      apellido: 'Principal',
+      numero_documento: '300000000',
+      correo: 'recepcionista@asogema.com',
+      password_hash: hash,
+      telefono: '3000000000',
+      correo_verificado: true,
+    },
+  });
+  console.log('Recepcionista creado: recepcionista@asogema.com');
+}
+
 async function main() {
   console.log('=== Seed Autenticación ===\n');
 
@@ -121,6 +151,7 @@ async function main() {
   if (clientes.length === 0) return;
 
   await ensureEmpleados();
+  await ensureRecepcionista();
 
   console.log('\n=== Seed autenticación completado ===');
 }

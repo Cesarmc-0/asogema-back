@@ -6,6 +6,7 @@ import { CreateRestaurantReservationUseCase } from 'src/restaurant/application/u
 import { CreatePedidoOnlineUseCase } from 'src/restaurant/application/use-cases/create-pedido-online.use-case';
 import { GetPedidoDetalleUseCase } from 'src/restaurant/application/use-cases/get-pedido-detalle.use-case';
 import { ActualizarEstadoPedidoUseCase } from 'src/restaurant/application/use-cases/actualizar-estado-pedido.use-case';
+import { GetMyRestaurantReservationsUseCase } from 'src/restaurant/application/use-cases/get-my-restaurant-reservations.use-case';
 import { RestaurantRepository } from 'src/restaurant/domain/repositories/restaurant-repository.interface';
 import { RestaurantRepositoryImpl } from 'src/restaurant/infrastructure/persistence/restaurant.repository';
 import { RestaurantController } from 'src/restaurant/presentation/controllers/restaurant.controller';
@@ -27,6 +28,7 @@ import { ComandaQueueProcessor } from 'src/restaurant/application/comanda-queue.
     CreatePedidoOnlineUseCase,
     GetPedidoDetalleUseCase,
     ActualizarEstadoPedidoUseCase,
+    GetMyRestaurantReservationsUseCase,
     { provide: RestaurantRepository, useClass: RestaurantRepositoryImpl },
     ComandaGateway,
     ComandaQueueService,

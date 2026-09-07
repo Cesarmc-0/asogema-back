@@ -8,6 +8,29 @@ export type ReservaHabitacionConHabitacion = Prisma.reservas_hotelGetPayload<{
   include: { habitaciones: { include: { tipos_habitacion: true } } };
 }>;
 
+export type DayBookingType = 'check-in' | 'check-out' | 'ocupadas' | 'todas';
+
+export const DAY_BOOKING_TYPES: DayBookingType[] = [
+  'check-in',
+  'check-out',
+  'ocupadas',
+  'todas',
+];
+
+export interface DayBooking {
+  id: bigint;
+  cliente: string;
+  telefono: string | null;
+  habitacion: string | null;
+  personas: number;
+  estado: string;
+  fecha_entrada: Date;
+  fecha_salida: Date;
+  observaciones: string | null;
+  total: number;
+  saldo_pendiente: number;
+}
+
 export interface CreateBookingInput {
   usuario_id: bigint;
   habitacion_id: bigint;
@@ -45,4 +68,15 @@ export abstract class HotelRoomRepository {
     fecha_entrada: Date,
     fecha_salida: Date,
   ): Promise<boolean>;
+  abstract findBookingById(
+    id: bigint,
+  ): Promise<Prisma.reservas_hotelGetPayload<{
+    include: { usuarios: true; habitaciones: true };
+  }> | null>;
+  abstract updateBookingStatus(id: bigint, estado: string): Promise<void>;
+  abstract findBookingsByDay(
+    day: Date,
+    tipo: 'check-in' | 'check-out' | 'ocupadas' | 'todas',
+    estado?: string,
+  ): Promise<DayBooking[]>;
 }

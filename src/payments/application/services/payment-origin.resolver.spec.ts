@@ -7,6 +7,7 @@ const mockPrisma = {
   reservas_hotel: { findUnique: jest.fn() },
   pedidos_online: { findUnique: jest.fn() },
   saldo_recargas: { create: jest.fn() },
+  pagos_hotel: { findMany: jest.fn() },
 };
 
 describe('PaymentOriginResolver', () => {
@@ -119,6 +120,56 @@ describe('PaymentOriginResolver', () => {
 
     await expect(
       resolver.resolve(10n, { tipo_reserva: 'EVENTO', reserva_id: 1n }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('HOTEL_SALDO: desglosa el saldo con IVA embebido (cobro = saldo exacto)', async () => {
+    mockPrisma.reservas_hotel.findUnique.mockResolvedValueOnce({
+      usuario_id: 10n,
+      fecha_entrada: new Date('2026-09-10'),
+      fecha_salida: new Date('2026-09-13'),
+      total: new Decimal(960000),
+      estado: 'CONFIRMADA',
+      cantidad_huespedes: 2,
+      habitaciones: {
+        numero: '101',
+        tipos_habitacion: { nombre: 'Suite' },
+      },
+    });
+    mockPrisma.pagos_hotel.findMany.mockResolvedValueOnce([
+      { monto: new Decimal(144000) },
+    ]);
+
+    const origen = await resolver.resolve(10n, {
+      tipo_reserva: 'HOTEL_SALDO',
+      reserva_id: 3n,
+    });
+
+    // Caso real: saldo 816.000 → subtotal 685.714 + IVA 130.286 = 816.000 exacto
+    expect(origen.monto).toBe(685714);
+    expect(origen.impuestos).toBe(130286);
+    expect(origen.monto + (origen.impuestos ?? 0)).toBe(816000);
+    expect(origen.resumen.saldo_pendiente).toBe(816000);
+  });
+
+  it('HOTEL_SALDO sin saldo pendiente: lanza BadRequestException', async () => {
+    mockPrisma.reservas_hotel.findUnique.mockResolvedValueOnce({
+      usuario_id: 10n,
+      fecha_entrada: new Date('2026-09-10'),
+      fecha_salida: new Date('2026-09-11'),
+      total: new Decimal(960000),
+      estado: 'CONFIRMADA',
+      habitaciones: {
+        numero: '101',
+        tipos_habitacion: { nombre: 'Suite' },
+      },
+    });
+    mockPrisma.pagos_hotel.findMany.mockResolvedValueOnce([
+      { monto: new Decimal(960000) },
+    ]);
+
+    await expect(
+      resolver.resolve(10n, { tipo_reserva: 'HOTEL_SALDO', reserva_id: 3n }),
     ).rejects.toThrow(BadRequestException);
   });
 });

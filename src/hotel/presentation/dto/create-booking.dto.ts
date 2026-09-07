@@ -30,4 +30,9 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   observaciones?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  pago_inicial_porcentaje?: number;
 }

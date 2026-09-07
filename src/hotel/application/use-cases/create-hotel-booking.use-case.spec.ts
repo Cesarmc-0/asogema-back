@@ -1,12 +1,17 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { CreateHotelBookingUseCase } from './create-hotel-booking.use-case';
 import { HotelRoomRepository } from 'src/hotel/domain/repositories/hotel-room.repository.interface';
+import { HotelPaymentRepository } from 'src/hotel/domain/repositories/hotel-payment.repository.interface';
 
 const mockHotelRepository = {
   findById: jest.fn(),
   isRoomAvailableForDates: jest.fn(),
   createBooking: jest.fn(),
 } as unknown as HotelRoomRepository;
+
+const mockHotelPaymentRepository = {
+  createPagoHotel: jest.fn(),
+} as unknown as HotelPaymentRepository;
 
 const mockPrisma = {
   usuarios: {
@@ -26,6 +31,7 @@ describe('CreateHotelBookingUseCase', () => {
   beforeEach(() => {
     useCase = new CreateHotelBookingUseCase(
       mockHotelRepository,
+      mockHotelPaymentRepository,
       mockPrisma,
       mockEmailSender,
     );
