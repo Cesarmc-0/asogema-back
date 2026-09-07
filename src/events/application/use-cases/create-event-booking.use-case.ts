@@ -67,7 +67,9 @@ export class CreateEventBookingUseCase {
       );
     }
 
-    const anticipo = dto.anticipo ?? Number(salon.precio_base) * 0.3;
+    // Rubro del evento a precio completo: ya no se cobra 30% como anticipo,
+    // la reserva se factura y cobra por el monto total del evento.
+    const anticipo = dto.anticipo ?? Number(salon.precio_base);
 
     const reserva = await this.eventRepository.createEventBooking({
       usuario_id,
