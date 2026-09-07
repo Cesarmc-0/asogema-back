@@ -10,6 +10,9 @@ import { ComandaGateway } from 'src/restaurant/infrastructure/gateways/comanda.g
 export const ESTADOS_PEDIDO = ['RECIBIDO', 'LISTO', 'ENTREGADO'] as const;
 export type EstadoPedido = (typeof ESTADOS_PEDIDO)[number];
 
+/** Estados previos desde los que la comanda puede recibir un pedido pagado. */
+export const ESTADOS_ORIGEN_RECIBIR = ['CONFIRMADA'] as const;
+
 const SIGUIENTE_ESTADO: Record<EstadoPedido, EstadoPedido | null> = {
   RECIBIDO: 'LISTO',
   LISTO: 'ENTREGADO',
@@ -42,10 +45,16 @@ export class ActualizarEstadoPedidoUseCase {
       return { pedido_id: pedido.id, estado: pedido.estado };
     }
 
-    if (SIGUIENTE_ESTADO[pedido.estado as EstadoPedido] !== estado) {
-      throw new BadRequestException(
-        `No se puede pasar de ${pedido.estado} a ${estado}. Secuencia permitida: RECIBIDO → LISTO → ENTREGADO`,
-      );
+    const esRecepcionPedidoPagado =
+      estado === 'RECIBIDO' &&
+      (ESTADOS_ORIGEN_RECIBIR as readonly string[]).includes(pedido.estado);
+
+    if (!esRecepcionPedidoPagado) {
+      if (SIGUIENTE_ESTADO[pedido.estado as EstadoPedido] !== estado) {
+        throw new BadRequestException(
+          `No se puede pasar de ${pedido.estado} a ${estado}. Secuencia permitida: CONFIRMADA → RECIBIDO → LISTO → ENTREGADO`,
+        );
+      }
     }
 
     await this.prisma.pedidos_online.update({

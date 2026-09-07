@@ -68,7 +68,7 @@ describe('CreatePedidoOnlineUseCase', () => {
         { producto_id: 2n, cantidad: 1 },
       ],
       tipo: 'PARA_LLEVAR',
-    });
+    }, 'Cliente');
 
     // Hamburguesa 2x20000 (con IVA) + Gaseosa 5000 (exenta) → IVA solo sobre 40000
     expect(result.subtotal).toBe(45000);
@@ -84,11 +84,35 @@ describe('CreatePedidoOnlineUseCase', () => {
     );
   });
 
+  it('crea un pedido de cliente como PENDIENTE (esperando pago)', async () => {
+    await useCase.execute(
+      10n,
+      { items: [{ producto_id: 1n, cantidad: 1 }], tipo: 'PARA_LLEVAR' },
+      'Cliente',
+    );
+
+    expect(mockRestaurantRepo.createPedidoOnline).toHaveBeenCalledWith(
+      expect.objectContaining({ estado: 'PENDIENTE' }),
+    );
+  });
+
+  it('crea un pedido de mesero como RECIBIDO (directo a cocina)', async () => {
+    await useCase.execute(
+      10n,
+      { items: [{ producto_id: 1n, cantidad: 1 }], tipo: 'PARA_LLEVAR' },
+      'Mesero',
+    );
+
+    expect(mockRestaurantRepo.createPedidoOnline).toHaveBeenCalledWith(
+      expect.objectContaining({ estado: 'RECIBIDO' }),
+    );
+  });
+
   it('notifica el cambio en el tablero tras crear el pedido', async () => {
     await useCase.execute(10n, {
       items: [{ producto_id: 1n, cantidad: 1 }],
       tipo: 'PARA_LLEVAR',
-    });
+    }, 'Cliente');
 
     expect(mockComandaGateway.notificarCambio).toHaveBeenCalledWith({
       pedido_id: 50,
@@ -99,7 +123,7 @@ describe('CreatePedidoOnlineUseCase', () => {
     const result = await useCase.execute(10n, {
       items: [{ producto_id: 1n, cantidad: 1 }],
       tipo: 'EN_MESA',
-    });
+    }, 'Cliente');
 
     expect(result.subtotal).toBe(20000);
     expect(result.impuestos).toBe(3800);
@@ -113,13 +137,13 @@ describe('CreatePedidoOnlineUseCase', () => {
       useCase.execute(10n, {
         items: [{ producto_id: 2n, cantidad: 5 }],
         tipo: 'PARA_LLEVAR',
-      }),
+      }, 'Cliente'),
     ).rejects.toThrow(BadRequestException);
   });
 
   it('items vacíos: lanza BadRequestException', async () => {
     await expect(
-      useCase.execute(10n, { items: [], tipo: 'PARA_LLEVAR' }),
+      useCase.execute(10n, { items: [], tipo: 'PARA_LLEVAR' }, 'Cliente'),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -133,7 +157,7 @@ describe('CreatePedidoOnlineUseCase', () => {
           { producto_id: 999n, cantidad: 1 },
         ],
         tipo: 'PARA_LLEVAR',
-      }),
+      }, 'Cliente'),
     ).rejects.toThrow(BadRequestException);
   });
 });
