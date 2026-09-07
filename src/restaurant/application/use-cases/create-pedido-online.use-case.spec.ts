@@ -11,7 +11,7 @@ const productos = [
     nombre: 'Hamburguesa',
     precio: new Decimal(20000),
     stock: 10,
-    activo: 'activo',
+    activo: true,
     aplica_iva: true,
   },
   {
@@ -19,7 +19,7 @@ const productos = [
     nombre: 'Gaseosa',
     precio: new Decimal(5000),
     stock: 3,
-    activo: 'activo',
+    activo: true,
     aplica_iva: false,
   },
 ];

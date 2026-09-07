@@ -3,6 +3,7 @@ import { AppController } from './presentation/controllers/app.controller';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { EventsModule } from './events/events.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
 import { AdminModule } from './admin/admin.module';
 import { PostgresModule } from './infrastructure/persistence/postgres/postgres.module';
@@ -38,6 +39,7 @@ const hasMongo = !!process.env.MONGODB_URI;
     RateLimitModule,
     AuthModule,
     EventsModule,
+    ReviewsModule,
     RestaurantModule,
     HotelModule,
     AdminModule,

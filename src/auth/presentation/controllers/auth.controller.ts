@@ -12,6 +12,7 @@ import { UpdateProfileUseCase } from 'src/auth/application/use-cases/update-prof
 import { ChangePasswordUseCase } from 'src/auth/application/use-cases/change-password.use-case';
 import { RefreshTokenUseCase } from 'src/auth/application/use-cases/refresh-token.use-case';
 import { LogoutUseCase } from 'src/auth/application/use-cases/logout.use-case';
+import { GetProfileUseCase } from 'src/auth/application/use-cases/get-profile.use-case';
 import { VerifyEmailUseCase } from 'src/auth/application/use-cases/verify-email.use-case';
 import { ResendCodeUseCase } from 'src/auth/application/use-cases/resend-code.use-case';
 import { ForgotPasswordUseCase } from 'src/auth/application/use-cases/forgot-password.use-case';
@@ -43,6 +44,7 @@ export class AuthController {
     private readonly resendCodeUseCase: ResendCodeUseCase,
     private readonly forgotPasswordUseCase: ForgotPasswordUseCase,
     private readonly resetPasswordUseCase: ResetPasswordUseCase,
+    private readonly getProfileUseCase: GetProfileUseCase,
   ) {}
 
   @Public()
@@ -141,7 +143,7 @@ export class AuthController {
   @Get('users/me')
   @UseGuards(AuthGuard('jwt'))
   getProfile(@CurrentUser() user: AuthenticatedUser) {
-    return user;
+    return this.getProfileUseCase.execute(user.id);
   }
 
   @ApiBearerAuth()

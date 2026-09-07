@@ -28,7 +28,10 @@ export class CreatePedidoOnlineUseCase {
     }
 
     const productos = await this.prisma.productos_menu.findMany({
-      where: { id: { in: dto.items.map((i) => i.producto_id) }, activo: 'activo' },
+      where: {
+        id: { in: dto.items.map((i) => i.producto_id) },
+        activo: true,
+      },
     });
 
     if (productos.length !== dto.items.length) {
@@ -39,7 +42,7 @@ export class CreatePedidoOnlineUseCase {
     let baseIva = 0;
     const items = dto.items.map((item) => {
       const producto = productos.find((p) => p.id === item.producto_id);
-      if (!producto || producto.activo !== 'activo') {
+      if (!producto || !producto.activo) {
         throw new BadRequestException(
           'Uno o más productos no están disponibles',
         );

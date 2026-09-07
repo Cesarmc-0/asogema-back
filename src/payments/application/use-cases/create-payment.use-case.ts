@@ -65,6 +65,16 @@ export class CreatePaymentUseCase {
 
     await this.validarMayorDeEdad(usuarioId);
 
+    const reservaIdForFactura =
+      dto.tipo_reserva === 'RESTAURANTE'
+        ? null
+        : (origen.reservaId ?? dto.reserva_id ?? null);
+    const reservaIdFacturaBigInt =
+      reservaIdForFactura != null
+        ? typeof reservaIdForFactura === 'bigint'
+          ? reservaIdForFactura
+          : BigInt(reservaIdForFactura)
+        : null;
     const factura = await this.paymentRepo.createFactura({
       usuario_id: usuarioId,
       subtotal: new Decimal(subtotal),
@@ -72,10 +82,7 @@ export class CreatePaymentUseCase {
       descuentos: new Decimal(descuento),
       total: new Decimal(total),
       estado: 'PENDIENTE',
-      reserva_id:
-        dto.tipo_reserva === 'RESTAURANTE'
-          ? null
-          : (origen.reservaId ?? dto.reserva_id ?? null),
+      reserva_id: reservaIdFacturaBigInt,
       pedido_online_id:
         dto.tipo_reserva === 'RESTAURANTE' ? (dto.reserva_id ?? null) : null,
       tipo_reserva: dto.tipo_reserva,
@@ -234,11 +241,18 @@ export class CreatePaymentUseCase {
       throw new BadRequestException('No puedes recargar saldo usando tu saldo');
     }
 
+    const reservaId = origen.reservaId ?? dto.reserva_id ?? null;
+    const reservaIdBigInt =
+      reservaId != null
+        ? typeof reservaId === 'bigint'
+          ? reservaId
+          : BigInt(reservaId)
+        : null;
     const { saldo_restante } = await this.paymentRepo.confirmarPagoCompleto(
       pagoId,
       facturaId,
       dto.tipo_reserva,
-      origen.reservaId ?? dto.reserva_id ?? null,
+      reservaIdBigInt,
       true,
     );
 

@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { GetMenuUseCase } from 'src/restaurant/application/use-cases/get-menu.use-case';
@@ -15,6 +16,7 @@ import { GetAvailableTablesUseCase } from 'src/restaurant/application/use-cases/
 import { CreateRestaurantReservationUseCase } from 'src/restaurant/application/use-cases/create-restaurant-reservation.use-case';
 import { CreatePedidoOnlineUseCase } from 'src/restaurant/application/use-cases/create-pedido-online.use-case';
 import { GetPedidoDetalleUseCase } from 'src/restaurant/application/use-cases/get-pedido-detalle.use-case';
+import { GetMyRestaurantReservationsUseCase } from 'src/restaurant/application/use-cases/get-my-restaurant-reservations.use-case';
 import {
   ActualizarEstadoPedidoUseCase,
   ESTADOS_PEDIDO,
@@ -28,6 +30,7 @@ import { CurrentUser } from 'src/auth/presentation/dto/decorators/current-user.d
 import type { AuthenticatedUser } from 'src/auth/domain/interfaces/authenticated-user.interface';
 import { Public } from 'src/auth/presentation/dto/decorators/public.decorator';
 import { Roles } from 'src/auth/presentation/dto/decorators/roles.decorator';
+import { PrismaService } from 'src/infrastructure/persistence/postgres/prisma.service';
 
 @ApiTags('restaurant')
 @Controller('restaurant')
@@ -39,6 +42,8 @@ export class RestaurantController {
     private readonly createPedidoOnlineUseCase: CreatePedidoOnlineUseCase,
     private readonly getPedidoDetalleUseCase: GetPedidoDetalleUseCase,
     private readonly actualizarEstadoPedidoUseCase: ActualizarEstadoPedidoUseCase,
+    private readonly getMyReservationsUseCase: GetMyRestaurantReservationsUseCase,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Public()
@@ -57,6 +62,52 @@ export class RestaurantController {
       hora: new Date(query.hora),
       capacidad_min: query.capacidad_min,
     });
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obtener mis reservas de restaurante' })
+  @UseGuards(AuthGuard('jwt'))
+  @Get('reservations/mine')
+  async getMyReservations(@CurrentUser() user: AuthenticatedUser) {
+    return this.getMyReservationsUseCase.execute(BigInt(user.id));
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancelar una reserva de restaurante' })
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('reservations/:id/cancel')
+  async cancelReservation(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!/^\d+$/.test(id)) {
+      throw new BadRequestException('id debe ser numérico');
+    }
+    const reservaId = BigInt(id);
+    const reserva = await this.prisma.reservas_restaurante.findFirst({
+      where: { id: reservaId, usuario_id: BigInt(user.id) },
+    });
+    if (!reserva) {
+      throw new BadRequestException('Reserva no encontrada');
+    }
+    if (!['PENDIENTE', 'CONFIRMADA'].includes(reserva.estado)) {
+      throw new ForbiddenException('No se puede cancelar en este estado');
+    }
+    const fecha = reserva.fecha.toISOString().slice(0, 10);
+    const hora = reserva.hora.toISOString().slice(11, 19);
+    const fechaHora = new Date(`${fecha}T${hora}`);
+    const now = new Date();
+    const diffHours = (fechaHora.getTime() - now.getTime()) / (1000 * 60 * 60);
+    if (diffHours < 2) {
+      throw new ForbiddenException(
+        'Cancelación permitida solo con al menos 2 horas de antelación',
+      );
+    }
+    await this.prisma.reservas_restaurante.update({
+      where: { id: reservaId },
+      data: { estado: 'CANCELADA' },
+    });
+    return { message: 'Reserva cancelada' };
   }
 
   @ApiBearerAuth()

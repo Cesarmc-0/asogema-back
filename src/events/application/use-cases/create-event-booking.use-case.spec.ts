@@ -154,7 +154,7 @@ describe('CreateEventBookingUseCase', () => {
     ).rejects.toThrow(ConflictException);
   });
 
-  it('debe calcular anticipo automático como 30% del precio_base', async () => {
+  it('debe cobrar el total del evento (precio_base completo, sin anticipo 30%)', async () => {
     mockPrisma.salones.findUnique.mockResolvedValue({
       id: 1n,
       nombre: 'Salón A',
@@ -175,7 +175,7 @@ describe('CreateEventBookingUseCase', () => {
     });
 
     const callArgs = mockEventRepository.createEventBooking.mock.calls[0][0];
-    expect(callArgs.anticipo).toBe(300000);
+    expect(callArgs.anticipo).toBe(1000000);
   });
 
   it('debe usar anticipo proporcionado si se envía', async () => {
