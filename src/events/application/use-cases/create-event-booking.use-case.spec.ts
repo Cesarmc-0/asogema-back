@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateEventBookingUseCase } from './create-event-booking.use-case';
 
 const mockEventRepository = {
@@ -201,6 +205,28 @@ describe('CreateEventBookingUseCase', () => {
 
     const lastCall = mockEventRepository.createEventBooking.mock.calls.at(-1);
     expect(lastCall?.[0].anticipo).toBe(500000);
+  });
+
+  it('debe lanzar BadRequestException si el salón no tiene precio configurado', async () => {
+    mockPrisma.salones.findUnique.mockResolvedValue({
+      id: 1n,
+      nombre: 'Salón A',
+      capacidad: 100,
+      estado: 'DISPONIBLE',
+      precio_base: null,
+    });
+    mockPrisma.reservas_evento.count.mockResolvedValue(0);
+
+    await expect(
+      useCase.execute(1n, {
+        salon_id: 1n,
+        tipo_evento_id: 1n,
+        fecha: new Date('2026-08-15'),
+        hora_inicio: new Date('2026-08-15T09:00:00'),
+        hora_fin: new Date('2026-08-15T17:00:00'),
+        cantidad_personas: 80,
+      }),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('debe notificar por correo la reserva de salón', async () => {
