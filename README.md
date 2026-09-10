@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./imagenes/logo-codexium.jpg" alt="CODEXIUM" width="160" />
+  <img src="./imagenes/logo-codexium.png" alt="CODEXIUM" width="160" />
 </p>
 
 <h1 align="center">Asogema — Backend</h1>
@@ -327,7 +327,7 @@ asogema-back/
 ├── db/
 │   └── asogema.sql              # Script SQL completo (tablas + datos base)
 ├── imagenes/
-│   └── logo-codexium.jpg        # Logo de CODEXIUM
+│   └── logo-codexium.png        # Logo de CODEXIUM
 ├── prisma/
 │   ├── schema.prisma            # Modelos de la base de datos
 │   ├── migrations/              # Migraciones versionadas
